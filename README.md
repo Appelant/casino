@@ -2,6 +2,8 @@
 
 Projet de développement collaboratif.
 
+Test de commit réussi !
+
 ## Description
 
 Ce projet est destiné au partage et à la collaboration.
