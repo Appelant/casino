@@ -188,6 +188,19 @@ export const staggerItem: Variants = {
 };
 
 // ============================================
+// CHIP PLACE (pour les jetons sur le tapis)
+// ============================================
+
+export const chipPlace: Variants = {
+  hidden: { opacity: 0, scale: 1.5 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { type: 'spring' as const, stiffness: 400, damping: 15 },
+  },
+};
+
+// ============================================
 // UTILITY: CHECK REDUCED MOTION
 // ============================================
 

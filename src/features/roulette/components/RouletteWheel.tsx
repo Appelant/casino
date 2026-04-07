@@ -178,9 +178,12 @@ export function RouletteWheel({
           </g>
         </svg>
 
-        {/* Pointer/marker at top */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 z-10">
-          <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[16px] border-l-transparent border-r-transparent border-t-white drop-shadow-lg" />
+        {/* Ball marker at top */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
+          <div className="w-4 h-4 rounded-full bg-gradient-to-br from-white via-gray-100 to-gray-400 shadow-lg border-2 border-gray-300"
+               style={{
+                 boxShadow: '0 0 10px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.3)'
+               }} />
         </div>
       </div>
     </div>

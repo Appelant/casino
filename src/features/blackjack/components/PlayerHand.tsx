@@ -13,11 +13,6 @@ export interface PlayerHandProps {
 
 /**
  * Composant PlayerHand — main du joueur
- *
- * Features:
- * - Affichage complet des cartes
- * - Indication de main active (tour en cours)
- * - Support split (affichage de mains multiples)
  */
 export function PlayerHand({
   hand,
@@ -25,6 +20,8 @@ export function PlayerHand({
   isActive = false,
   label = 'Vous',
 }: PlayerHandProps) {
+  if (!hand) return null;
+
   return (
     <GlassCard
       glowColor={isActive ? 'gold' : 'none'}
@@ -56,13 +53,13 @@ export function PlayerHand({
         </div>
 
         {/* Cards */}
-        <HandOfCards cards={hand?.cards ?? []} />
+        <HandOfCards cards={hand.cards} />
 
         {/* Score */}
         <ScoreDisplay
           hand={hand}
-          isBust={hand?.isBust}
-          isBlackjack={hand?.isBlackjack}
+          isBust={hand.isBust}
+          isBlackjack={hand.isBlackjack}
         />
       </div>
     </GlassCard>

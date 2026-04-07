@@ -11,8 +11,9 @@ import { usePlayerStore } from '@/stores';
 import { useHistoryStore } from '@/stores';
 import { createHand, calculateHand, compareHands } from '../utils/handCalculator';
 import { simulateDealerTurn } from '../utils/dealerStrategy';
-import { calculatePayout, calculateNetProfit } from '@/utils/payouts/blackjackPayout';
+import { calculatePayout } from '@/utils/payouts/blackjackPayout';
 import { useBlackjackDeck } from './useBlackjackDeck';
+import { evaluateSideBets, type SideBetResult } from '../utils/sideBets';
 
 type BlackjackOutcome = 'win' | 'lose' | 'push' | 'blackjack' | 'bust' | 'dealerBust';
 
@@ -25,9 +26,14 @@ type GameStatus = 'idle' | 'bet' | 'deal' | 'playerTurn' | 'dealerTurn' | 'settl
 interface BlackjackState {
   status: GameStatus;
   playerHand: Hand | null;
+  playerHands: Hand[] | null;  // Pour le split (plusieurs mains)
+  activeHandIndex: number;     // Index de la main active en cas de split
   dealerHand: Hand | null;
   currentBet: number;
   insuranceBet: number;
+  perfectPairsBet: number;     // Mise Perfect Pairs
+  twentyOnePlusThreeBet: number; // Mise 21+3
+  sideBetResults: SideBetResult[] | null;
   outcome: BlackjackOutcome | null;
   payout: number;
   error: string | null;
@@ -35,15 +41,17 @@ interface BlackjackState {
 
 type BlackjackAction =
   | { type: 'START_BET' }
-  | { type: 'PLACE_BET'; payload: number }
-  | { type: 'DEAL' }
+  | { type: 'PLACE_BET'; payload: { mainBet: number; perfectPairsBet?: number; twentyOnePlusThreeBet?: number } }
+  | { type: 'DEAL'; payload: { playerHand: Hand; dealerHand: Hand } }
   | { type: 'PLAYER_HIT'; payload: Hand }
   | { type: 'PLAYER_STAND' }
   | { type: 'PLAYER_DOUBLE'; payload: { hand: Hand; additionalBet: number } }
   | { type: 'PLAYER_BLACKJACK' }
   | { type: 'PLAYER_BUST' }
+  | { type: 'SPLIT'; payload: { hands: Hand[] } }
+  | { type: 'NEXT_HAND' }
   | { type: 'DEALER_TURN'; payload: Hand }
-  | { type: 'SETTLE'; payload: { outcome: BlackjackOutcome; payout: number } }
+  | { type: 'SETTLE'; payload: { outcome: BlackjackOutcome; payout: number; sideBetResults?: SideBetResult[] } }
   | { type: 'RESET' }
   | { type: 'SET_ERROR'; payload: string };
 
@@ -57,10 +65,21 @@ function blackjackReducer(state: BlackjackState, action: BlackjackAction): Black
       return { ...state, status: 'bet', error: null };
 
     case 'PLACE_BET':
-      return { ...state, currentBet: action.payload, status: 'deal' };
+      return {
+        ...state,
+        currentBet: action.payload.mainBet,
+        perfectPairsBet: action.payload.perfectPairsBet ?? 0,
+        twentyOnePlusThreeBet: action.payload.twentyOnePlusThreeBet ?? 0,
+        status: 'deal',
+      };
 
     case 'DEAL':
-      return { ...state, status: 'playerTurn' };
+      return {
+        ...state,
+        status: 'playerTurn',
+        playerHand: action.payload.playerHand,
+        dealerHand: action.payload.dealerHand,
+      };
 
     case 'PLAYER_HIT':
       return { ...state, playerHand: action.payload };
@@ -80,7 +99,24 @@ function blackjackReducer(state: BlackjackState, action: BlackjackAction): Black
       return { ...state, status: 'settle' };
 
     case 'PLAYER_BUST':
+      // En cas de split, passer à la main suivante ou au dealer
+      if (state.playerHands && state.activeHandIndex < state.playerHands.length - 1) {
+        return { ...state, activeHandIndex: state.activeHandIndex + 1 };
+      }
       return { ...state, status: 'settle', outcome: 'bust', payout: 0 };
+
+    case 'SPLIT':
+      return {
+        ...state,
+        playerHands: action.payload.hands,
+        activeHandIndex: 0,
+      };
+
+    case 'NEXT_HAND':
+      if (state.playerHands && state.activeHandIndex < state.playerHands.length - 1) {
+        return { ...state, activeHandIndex: state.activeHandIndex + 1 };
+      }
+      return { ...state, status: 'dealerTurn' };
 
     case 'DEALER_TURN':
       return { ...state, dealerHand: action.payload, status: 'settle' };
@@ -96,9 +132,14 @@ function blackjackReducer(state: BlackjackState, action: BlackjackAction): Black
       return {
         status: 'idle',
         playerHand: null,
+        playerHands: null,
+        activeHandIndex: 0,
         dealerHand: null,
         currentBet: 0,
         insuranceBet: 0,
+        perfectPairsBet: 0,
+        twentyOnePlusThreeBet: 0,
+        sideBetResults: null,
         outcome: null,
         payout: 0,
         error: null,
@@ -119,9 +160,14 @@ function blackjackReducer(state: BlackjackState, action: BlackjackAction): Black
 const INITIAL_STATE: BlackjackState = {
   status: 'idle',
   playerHand: null,
+  playerHands: null,
+  activeHandIndex: 0,
   dealerHand: null,
   currentBet: 0,
   insuranceBet: 0,
+  perfectPairsBet: 0,
+  twentyOnePlusThreeBet: 0,
+  sideBetResults: null,
   outcome: null,
   payout: 0,
   error: null,
@@ -148,17 +194,22 @@ export function useBlackjackEngine() {
   }, []);
 
   /**
-   * Place la mise initiale et distribue les cartes
+   * Place la mise initiale et les side bets optionnels
    */
-  const placeBet = useCallback((amount: number) => {
+  const placeBet = useCallback((mainBet: number, perfectPairsBet: number = 0, twentyOnePlusThreeBet: number = 0) => {
+    const totalBet = mainBet + perfectPairsBet + twentyOnePlusThreeBet;
+
     // Vérifier le solde
-    const canBet = playerStore.placeBet(amount);
+    const canBet = playerStore.placeBet(totalBet);
     if (!canBet) {
       dispatch({ type: 'SET_ERROR', payload: 'Solde insuffisant' });
       return false;
     }
 
-    dispatch({ type: 'PLACE_BET', payload: amount });
+    dispatch({
+      type: 'PLACE_BET',
+      payload: { mainBet, perfectPairsBet, twentyOnePlusThreeBet },
+    });
     return true;
   }, [playerStore]);
 
@@ -190,8 +241,36 @@ export function useBlackjackEngine() {
     const playerHand = createHand(playerCards);
     const dealerHand = createHand(dealerCards);
 
-    // Mettre à jour l'état
-    dispatch({ type: 'DEAL' });
+    // Évaluer les side bets si des mises sont placées
+    let sideBetResults: SideBetResult[] | null = null;
+    let sideBetPayout = 0;
+
+    if (state.perfectPairsBet > 0 || state.twentyOnePlusThreeBet > 0) {
+      const dealerUpCard = dealerCards.find((c) => !c.isFaceDown);
+      if (playerCards[0] && playerCards[1] && dealerUpCard) {
+        sideBetResults = evaluateSideBets(
+          playerCards[0],
+          playerCards[1],
+          dealerUpCard,
+          state.perfectPairsBet,
+          state.twentyOnePlusThreeBet
+        );
+
+        // Créditer immédiatement les side bets gagnants
+        for (const result of sideBetResults) {
+          if (result.won && result.payout > 0) {
+            sideBetPayout += result.payout;
+          }
+        }
+
+        if (sideBetPayout > 0) {
+          playerStore.receiveWin(sideBetPayout);
+        }
+      }
+    }
+
+    // Mettre à jour l'état avec les mains distribuées
+    dispatch({ type: 'DEAL', payload: { playerHand, dealerHand } });
 
     // Vérifier blackjack naturel du joueur
     if (playerHand.isBlackjack) {
@@ -226,7 +305,37 @@ export function useBlackjackEngine() {
    * Le joueur prend une carte (hit)
    */
   const hit = useCallback(() => {
-    if (state.status !== 'playerTurn' || !state.playerHand) return;
+    if (state.status !== 'playerTurn') return;
+
+    // Gestion du split: on joue sur la main active
+    if (state.playerHands && state.playerHands[state.activeHandIndex]) {
+      const currentHand = state.playerHands[state.activeHandIndex];
+      if (!currentHand) return;
+
+      const card = draw();
+      if (!card) return;
+
+      const newHand = createHand([...currentHand.cards, card]);
+      const newHands = [...state.playerHands];
+      newHands[state.activeHandIndex] = newHand;
+
+      if (newHand.isBust) {
+        // Main suivante ou tour du dealer
+        if (state.activeHandIndex < state.playerHands.length - 1) {
+          dispatch({ type: 'SPLIT', payload: { hands: newHands } });
+          dispatch({ type: 'NEXT_HAND' });
+        } else {
+          dispatch({ type: 'SPLIT', payload: { hands: newHands } });
+          settleRound('bust', 0, newHand, state.dealerHand);
+        }
+      } else {
+        dispatch({ type: 'SPLIT', payload: { hands: newHands } });
+      }
+      return;
+    }
+
+    // Main unique (pas de split)
+    if (!state.playerHand) return;
 
     const card = draw();
     if (!card) return;
@@ -239,18 +348,25 @@ export function useBlackjackEngine() {
     } else {
       dispatch({ type: 'PLAYER_HIT', payload: newHand });
     }
-  }, [state.status, state.playerHand, state.dealerHand]);
+  }, [state.status, state.playerHand, state.playerHands, state.activeHandIndex, state.dealerHand]);
 
   /**
    * Le joueur s'arrête (stand)
    */
   const stand = useCallback(() => {
     if (state.status !== 'playerTurn') return;
-    dispatch({ type: 'PLAYER_STAND' });
-  }, [state.status]);
+
+    // En cas de split, passer à la main suivante ou au dealer
+    if (state.playerHands && state.activeHandIndex < state.playerHands.length - 1) {
+      dispatch({ type: 'NEXT_HAND' });
+    } else {
+      // Fin des mains joueur, tour du dealer
+      dispatch({ type: 'PLAYER_STAND' });
+    }
+  }, [state.status, state.playerHands, state.activeHandIndex]);
 
   /**
-   * Le joueur double (double down)
+   * Le joueur double (double down) - une seule carte puis tour du dealer
    */
   const doubleDown = useCallback(() => {
     if (state.status !== 'playerTurn' || !state.playerHand) return;
@@ -268,17 +384,72 @@ export function useBlackjackEngine() {
     const newHand = createHand([...state.playerHand.cards, card]);
     dispatch({ type: 'PLAYER_DOUBLE', payload: { hand: newHand, additionalBet } });
 
-    // Si bust après double, perte immédiate
+    // Après un double, le joueur ne peut plus tirer - une carte automatique
+    // Puis c'est le tour du dealer (sauf si bust)
     if (newHand.isBust) {
       settleRound('bust', 0, newHand, state.dealerHand);
+    } else {
+      // Passer directement au tour du dealer
+      dispatch({ type: 'PLAYER_STAND' });
     }
   }, [state.status, state.playerHand, state.currentBet, playerStore]);
 
   /**
-   * Tour automatique du dealer
+   * Le joueur sépare sa main (split) - crée 2 mains distinctes
+   * Règles:
+   * - Possible uniquement avec 2 cartes de même rang (paire)
+   * - Mise supplémentaire égale à la mise initiale
+   * - Chaque main reçoit une carte supplémentaire
+   * - Le joueur joue chaque main séparément
+   */
+  const split = useCallback(() => {
+    if (state.status !== 'playerTurn' || !state.playerHand) return;
+
+    // Vérifier que c'est une paire (2 cartes de même rang)
+    const cards = state.playerHand.cards;
+    if (cards.length !== 2) return;
+
+    const card1 = cards[0];
+    const card2 = cards[1];
+    if (!card1 || !card2) return;
+    if (card1.rank !== card2.rank) return;
+
+    // Vérifier le solde pour la mise supplémentaire
+    const additionalBet = state.currentBet;
+    const canSplit = playerStore.placeBet(additionalBet);
+    if (!canSplit) {
+      dispatch({ type: 'SET_ERROR', payload: 'Solde insuffisant pour splitter' });
+      return;
+    }
+
+    // Créer 2 nouvelles mains avec une carte chacune
+    const hand1 = createHand([card1]);
+    const hand2 = createHand([card2]);
+
+    // Tirer une carte supplémentaire pour chaque main
+    const cardForHand1 = draw();
+    const cardForHand2 = draw();
+
+    if (cardForHand1) {
+      hand1.cards.push(cardForHand1);
+      Object.assign(hand1, calculateHand(hand1.cards));
+    }
+
+    if (cardForHand2) {
+      hand2.cards.push(cardForHand2);
+      Object.assign(hand2, calculateHand(hand2.cards));
+    }
+
+    // Mettre à jour l'état avec les 2 mains
+    dispatch({ type: 'SPLIT', payload: { hands: [hand1, hand2] } });
+  }, [state.status, state.playerHand, state.currentBet, playerStore]);
+
+  /**
+   * Tour automatique du dealer - gère aussi les mains splitées
    */
   const playDealerTurn = useCallback(() => {
-    if (state.status !== 'dealerTurn' || !state.dealerHand) return;
+    if (state.status !== 'dealerTurn' && state.status !== 'settle') return;
+    if (!state.dealerHand) return;
     if (isProcessing.current) return;
 
     isProcessing.current = true;
@@ -292,13 +463,89 @@ export function useBlackjackEngine() {
 
     dispatch({ type: 'DEALER_TURN', payload: finalDealerHand });
 
-    // Déterminer le résultat
+    // Gérer les mains splitées
+    if (state.playerHands && state.playerHands.length > 0) {
+      let totalPayout = 0;
+      const results: Array<{ hand: Hand; outcome: BlackjackOutcome; payout: number }> = [];
+
+      for (let i = 0; i < state.playerHands.length; i++) {
+        const playerHand = state.playerHands[i];
+        if (!playerHand) continue;
+
+        // Si la main est bust, elle est déjà perdue
+        if (playerHand.isBust) {
+          results.push({ hand: playerHand, outcome: 'lose', payout: 0 });
+          continue;
+        }
+
+        const playerValue = calculateHand(playerHand.cards);
+
+        // Dealer bust → toutes les mains non-bust gagnent
+        if (finalDealerHand.isBust) {
+          const payout = calculatePayout('dealerBust', state.currentBet);
+          totalPayout += payout;
+          results.push({ hand: playerHand, outcome: 'dealerBust', payout });
+        } else {
+          const comparison = compareHands(playerValue.total, finalDealerHand.total);
+          let outcome: BlackjackOutcome;
+          let payout: number;
+
+          switch (comparison) {
+            case 'player':
+              outcome = 'win';
+              payout = calculatePayout('win', state.currentBet);
+              break;
+            case 'dealer':
+              outcome = 'lose';
+              payout = 0;
+              break;
+            default:
+              outcome = 'push';
+              payout = calculatePayout('push', state.currentBet);
+          }
+          totalPayout += payout;
+          results.push({ hand: playerHand, outcome, payout });
+        }
+      }
+
+      // Créditer le total des gains
+      if (totalPayout > 0) {
+        playerStore.receiveWin(totalPayout);
+      }
+
+      // Enregistrer chaque main dans l'historique
+      for (const result of results) {
+        const round: import('@/types').GameResult = {
+          id: `bj_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          gameId: 'blackjack' as const,
+          timestamp: Date.now(),
+          wagered: state.currentBet,
+          won: result.payout,
+          netProfit: result.payout - state.currentBet,
+          isWin: result.payout > state.currentBet,
+          details: {
+            playerHand: result.hand.cards.map((c) => `${c.rank}${c.suit[0]}`),
+            dealerHand: finalDealerHand.cards.map((c) => `${c.rank}${c.suit[0]}`),
+            playerTotal: result.hand.total,
+            dealerTotal: finalDealerHand.total,
+            outcome: result.outcome,
+            isBlackjack: result.hand.isBlackjack,
+            isDouble: false,
+            isSplit: true,
+          },
+        };
+        addRound(round);
+      }
+
+      isProcessing.current = false;
+      return;
+    }
+
+    // Main unique (pas de split)
     if (finalDealerHand.isBust) {
-      // Dealer bust → joueur gagne
       const payout = calculatePayout('dealerBust', state.currentBet);
       settleRound('dealerBust', payout, state.playerHand, finalDealerHand);
     } else {
-      // Comparer les mains
       const playerValue = state.playerHand ? calculateHand(state.playerHand.cards) : { total: 0 };
       const comparison = compareHands(playerValue.total, finalDealerHand.total);
 
@@ -323,14 +570,20 @@ export function useBlackjackEngine() {
     }
 
     isProcessing.current = false;
-  }, [state.status, state.dealerHand, state.playerHand, state.currentBet]);
+  }, [state.status, state.dealerHand, state.playerHand, state.playerHands, state.currentBet, state.activeHandIndex]);
 
   /**
    * Enregistre le round terminé et crédite le joueur
    */
   const settleRound = useCallback(
-    (outcome: BlackjackOutcome, payout: number, playerHand: Hand | null, dealerHand: Hand | null) => {
-      dispatch({ type: 'SETTLE', payload: { outcome, payout } });
+    (
+      outcome: BlackjackOutcome,
+      payout: number,
+      playerHand: Hand | null,
+      dealerHand: Hand | null,
+      sideBetResults?: SideBetResult[]
+    ) => {
+      dispatch({ type: 'SETTLE', payload: { outcome, payout, sideBetResults } });
 
       // Créditer le joueur si gain
       if (payout > 0) {
@@ -339,14 +592,17 @@ export function useBlackjackEngine() {
 
       // Enregistrer dans l'historique
       if (playerHand && dealerHand) {
+        const totalWagered = state.currentBet + state.perfectPairsBet + state.twentyOnePlusThreeBet;
+        const totalWon = payout + (sideBetResults?.reduce((sum, r) => sum + r.payout, 0) ?? 0);
+
         const round: import('@/types').GameResult = {
           id: `bj_${Date.now()}`,
           gameId: 'blackjack' as const,
           timestamp: Date.now(),
-          wagered: state.currentBet,
-          won: payout,
-          netProfit: calculateNetProfit(outcome as any, state.currentBet),
-          isWin: payout > state.currentBet,
+          wagered: totalWagered,
+          won: totalWon,
+          netProfit: totalWon - totalWagered,
+          isWin: totalWon > totalWagered,
           details: {
             playerHand: playerHand.cards.map((c) => `${c.rank}${c.suit[0]}`),
             dealerHand: dealerHand.cards.map((c) => `${c.rank}${c.suit[0]}`),
@@ -355,14 +611,14 @@ export function useBlackjackEngine() {
             outcome: outcome as any,
             isBlackjack: playerHand.isBlackjack,
             isDouble: false,
-            isSplit: false,
+            isSplit: state.playerHands !== null,
           },
         };
 
         addRound(round);
       }
     },
-    [state.currentBet, playerStore, addRound]
+    [state.currentBet, state.perfectPairsBet, state.twentyOnePlusThreeBet, state.playerHands, playerStore, addRound]
   );
 
   /**
@@ -380,8 +636,13 @@ export function useBlackjackEngine() {
     // État
     status: state.status,
     playerHand: state.playerHand,
+    playerHands: state.playerHands,
+    activeHandIndex: state.activeHandIndex,
     dealerHand: state.dealerHand,
     currentBet: state.currentBet,
+    perfectPairsBet: state.perfectPairsBet,
+    twentyOnePlusThreeBet: state.twentyOnePlusThreeBet,
+    sideBetResults: state.sideBetResults,
     outcome: state.outcome,
     payout: state.payout,
     error: state.error,
@@ -393,6 +654,7 @@ export function useBlackjackEngine() {
     hit,
     stand,
     doubleDown,
+    split,
     playDealerTurn,
     reset,
   };

@@ -23,6 +23,7 @@ interface RouletteState {
   status: GameStatus;
   currentBets: RouletteBet[];
   lastResult: SpinResult | null;
+  winningNumber: number | null;  // Stocké avant le spin pour l'animation
   error: string | null;
 }
 
@@ -31,7 +32,7 @@ type RouletteAction =
   | { type: 'PLACE_BET'; payload: RouletteBet }
   | { type: 'REMOVE_BET'; payload: string }
   | { type: 'CLEAR_BETS' }
-  | { type: 'SPIN' }
+  | { type: 'SPIN'; payload: number }  // Numéro gagnant généré avant le spin
   | { type: 'RESOLVE'; payload: SpinResult }
   | { type: 'RESET' }
   | { type: 'SET_ERROR'; payload: string };
@@ -55,13 +56,13 @@ function rouletteReducer(state: RouletteState, action: RouletteAction): Roulette
       return { ...state, currentBets: [] };
 
     case 'SPIN':
-      return { ...state, status: 'spinning' };
+      return { ...state, status: 'spinning', winningNumber: action.payload };
 
     case 'RESOLVE':
       return { ...state, status: 'result', lastResult: action.payload };
 
     case 'RESET':
-      return { status: 'idle', currentBets: [], lastResult: null, error: null };
+      return { status: 'idle', currentBets: [], lastResult: null, winningNumber: null, error: null };
 
     case 'SET_ERROR':
       return { ...state, status: 'idle', error: action.payload };
@@ -79,6 +80,7 @@ const INITIAL_STATE: RouletteState = {
   status: 'idle',
   currentBets: [],
   lastResult: null,
+  winningNumber: null,
   error: null,
 };
 
@@ -146,18 +148,21 @@ export function useRouletteEngine() {
 
   /**
    * Lance le spin de la roue
+   * Génère le numéro gagnant AVANT le spin pour l'animation
    */
   const spin = useCallback(() => {
     if (state.status !== 'betting' || state.currentBets.length === 0) {
       return;
     }
 
-    dispatch({ type: 'SPIN' });
+    // Générer le numéro gagnant MAINTENANT (avant l'animation)
+    const winningNumber = secureRandomInt(0, 36);
+    dispatch({ type: 'SPIN', payload: winningNumber });
     isProcessing.current = true;
   }, [state.status, state.currentBets.length]);
 
   /**
-   * Génère le numéro gagnant et résout les mises
+   * Résout les mises avec le numéro déjà généré
    * À appeler quand l'animation de la roue se termine
    */
   const resolveSpin = useCallback(() => {
@@ -165,8 +170,8 @@ export function useRouletteEngine() {
       return;
     }
 
-    // Générer le numéro gagnant (0-36)
-    const winningNumber = secureRandomInt(0, 36);
+    // Utiliser le numéro déjà généré (ou fallback en cas d'erreur)
+    const winningNumber = state.winningNumber ?? secureRandomInt(0, 36);
 
     // Résoudre les mises
     const result = resolveBets(state.currentBets, winningNumber);
@@ -204,7 +209,7 @@ export function useRouletteEngine() {
     }
 
     isProcessing.current = false;
-  }, [state.status, state.currentBets, addRound, playerStore]);
+  }, [state.status, state.currentBets, state.winningNumber, addRound, playerStore]);
 
   /**
    * Réinitialise pour une nouvelle partie
@@ -222,6 +227,7 @@ export function useRouletteEngine() {
     status: state.status,
     currentBets: state.currentBets,
     lastResult: state.lastResult,
+    winningNumber: state.winningNumber,  // Numéro généré pour l'animation
     error: state.error,
 
     // Actions

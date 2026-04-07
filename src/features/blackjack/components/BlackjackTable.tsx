@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useBlackjackEngine } from '../hooks/useBlackjackEngine';
-import { BettingTable } from './BettingTable';
+import { SideBetsTable } from './SideBetsTable';
 import { DealerHand } from './DealerHand';
-import { PlayerHand } from './PlayerHand';
+import { PlayerHand, SplitHands } from './PlayerHand';
 import { ActionPanel } from './ActionPanel';
 import { ResultOverlay } from './ResultOverlay';
 import { useToast } from '@/components/ui/ToastNotification';
@@ -27,15 +27,22 @@ export function BlackjackTable() {
     engine.reset();
   }, []);
 
-  // Place la mise initiale
-  const handlePlaceBet = useCallback((amount: number) => {
-    const success = engine.placeBet(amount);
-    if (success) {
-      engine.deal();
-    } else {
+  // Place les mises (principale + side bets) et distribue les cartes
+  const handlePlaceBets = useCallback((mainBet: number, perfectPairsBet: number, twentyOnePlusThreeBet: number) => {
+    const success = engine.placeBet(mainBet, perfectPairsBet, twentyOnePlusThreeBet);
+    if (!success) {
       toast.error('Solde insuffisant', 2000);
+      return;
     }
+    // deal() sera appelé via useEffect quand le status passera à 'deal'
   }, [engine, toast]);
+
+  // Distribue les cartes automatiquement après la mise
+  useEffect(() => {
+    if (engine.status === 'deal') {
+      engine.deal();
+    }
+  }, [engine.status, engine.deal]);
 
   // Actions du joueur
   const handleHit = useCallback(() => {
@@ -44,19 +51,25 @@ export function BlackjackTable() {
 
   const handleStand = useCallback(() => {
     engine.stand();
-    // Le tour du dealer se joue automatiquement
-    setTimeout(() => {
-      engine.playDealerTurn();
-    }, 500);
   }, [engine]);
 
   const handleDouble = useCallback(() => {
     engine.doubleDown();
-    // Après double, le dealer joue immédiatement
-    setTimeout(() => {
-      engine.playDealerTurn();
-    }, 500);
   }, [engine]);
+
+  const handleSplit = useCallback(() => {
+    engine.split();
+  }, [engine]);
+
+  // Déclenche automatiquement le tour du dealer quand le statut passe à dealerTurn
+  useEffect(() => {
+    if (engine.status === 'dealerTurn') {
+      const timer = setTimeout(() => {
+        engine.playDealerTurn();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [engine.status, engine.playDealerTurn]);
 
   // Quand le résultat est disponible
   useEffect(() => {
@@ -80,14 +93,19 @@ export function BlackjackTable() {
   }, [engine]);
 
   // Déterminer les actions disponibles
-  const canHit = engine.status === 'playerTurn' && !engine.playerHand?.isBust && engine.playerHand!.total < 21;
-  const canStand = engine.status === 'playerTurn' && !engine.playerHand?.isBust;
+  const playerTotal = engine.playerHand?.total ?? 0;
+  const canHit = engine.status === 'playerTurn' && playerTotal < 21;
+  const canStand = engine.status === 'playerTurn';
   const canDouble = engine.status === 'playerTurn' &&
-    engine.playerHand!.cards.length === 2 &&
-    !engine.playerHand?.isBust;
+    engine.playerHand?.cards.length === 2 &&
+    playerTotal < 21;
+  // Split: uniquement avec 2 cartes de même rang, avant de tirer
+  const canSplit = engine.status === 'playerTurn' &&
+    engine.playerHand?.cards.length === 2 &&
+    engine.playerHand.cards[0]?.rank === engine.playerHand.cards[1]?.rank;
 
   const isBettingPhase = engine.status === 'idle' || engine.status === 'bet';
-  const isPlayingPhase = engine.status === 'playerTurn' || engine.status === 'dealerTurn';
+  const isPlayingPhase = engine.status === 'playerTurn' || engine.status === 'dealerTurn' || engine.status === 'deal' || engine.status === 'settle';
 
   return (
     <motion.div
@@ -108,8 +126,8 @@ export function BlackjackTable() {
       {/* Betting phase */}
       {isBettingPhase && (
         <div className="py-12">
-          <BettingTable
-            onPlaceBet={handlePlaceBet}
+          <SideBetsTable
+            onPlaceBets={handlePlaceBets}
             disabled={engine.status === 'bet'}
           />
         </div>
@@ -130,26 +148,39 @@ export function BlackjackTable() {
             isRevealed={engine.status === 'dealerTurn' || engine.status === 'settle'}
           />
 
-          {/* Player hand */}
-          <PlayerHand
-            hand={engine.playerHand}
-            isActive={engine.status === 'playerTurn'}
-          />
+          {/* Player hands - split ou main unique */}
+          {engine.playerHands ? (
+            <SplitHands
+              hands={engine.playerHands}
+              activeHandIndex={engine.activeHandIndex}
+            />
+          ) : (
+            <PlayerHand
+              hand={engine.playerHand}
+              isActive={engine.status === 'playerTurn'}
+            />
+          )}
 
           {/* Action panel */}
           <ActionPanel
             onHit={handleHit}
             onStand={handleStand}
             onDouble={handleDouble}
+            onSplit={handleSplit}
             canHit={canHit}
             canStand={canStand}
             canDouble={canDouble}
+            canSplit={canSplit}
             disabled={engine.status !== 'playerTurn'}
           />
 
           {/* Game status */}
           <div className="text-center text-sm text-white/40">
-            {engine.status === 'playerTurn' && "À vous de jouer"}
+            {engine.status === 'playerTurn' && (
+              engine.playerHands
+                ? `Main ${engine.activeHandIndex + 1}/${engine.playerHands.length}`
+                : "À vous de jouer"
+            )}
             {engine.status === 'dealerTurn' && "Tour du dealer..."}
             {engine.status === 'settle' && "Résultat"}
           </div>

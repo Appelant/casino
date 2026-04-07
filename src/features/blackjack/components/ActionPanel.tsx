@@ -6,11 +6,11 @@ export interface ActionPanelProps {
   onHit: () => void;
   onStand: () => void;
   onDouble: () => void;
-  onSplit?: () => void;
+  onSplit: () => void;
   canHit: boolean;
   canStand: boolean;
   canDouble: boolean;
-  canSplit?: boolean;
+  canSplit: boolean;
   disabled?: boolean;
 }
 
@@ -45,7 +45,7 @@ export function ActionPanel({
       variants={fadeIn}
       initial="hidden"
       animate="visible"
-      className="flex justify-center gap-3"
+      className="flex justify-center gap-3 flex-wrap"
     >
       {/* Hit button */}
       {canHit && (
@@ -105,7 +105,7 @@ export function ActionPanel({
       )}
 
       {/* Split button */}
-      {canSplit && onSplit && (
+      {canSplit && (
         <motion.div variants={staggerItem}>
           <NeonButton
             variant="cyan"

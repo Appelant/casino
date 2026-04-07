@@ -12,10 +12,10 @@ export interface PlayingCardProps {
 }
 
 const suitColors: Record<string, string> = {
-  hearts: 'text-red-500',
-  diamonds: 'text-red-500',
-  clubs: 'text-white',
-  spades: 'text-white',
+  hearts: 'text-red-600',
+  diamonds: 'text-red-600',
+  clubs: 'text-gray-900',
+  spades: 'text-gray-900',
 };
 
 /**

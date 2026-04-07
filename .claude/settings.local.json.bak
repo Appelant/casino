@@ -7,11 +7,7 @@
       "Bash(npx tsc:*)",
       "Bash(npm run:*)",
       "Bash(git fetch:*)",
-      "Bash(git pull:*)",
-      "Bash(./node_modules/.bin/tsc --noEmit)",
-      "Bash(npm list:*)",
-      "Bash(curl -s http://localhost:5173)",
-      "Bash(node:*)"
+      "Bash(git pull:*)"
     ]
   }
 }

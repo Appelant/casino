@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouletteEngine } from '../hooks/useRouletteEngine';
-import { useRouletteBets } from '../hooks/useRouletteBets';
+import type { BetType } from '@/types';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { ChipSelector } from './BettingChip';
 import { BettingGrid } from './BettingGrid';
@@ -22,7 +22,6 @@ import { fadeIn } from '@/config/animations.config';
 export function RouletteTable() {
   // Hooks
   const engine = useRouletteEngine();
-  const { bets, totalBet, hasBets } = useRouletteBets();
   const toast = useToast();
 
   // State local
@@ -35,14 +34,22 @@ export function RouletteTable() {
     engine.startBetting();
   }, []);
 
+  // Récupérer les mises depuis l'engine
+  const currentBets = engine.currentBets;
+  const totalBet = currentBets.reduce((sum, b) => sum + b.amount, 0);
+  const hasBets = currentBets.length > 0;
+
   // Gère la fin du spin
   const handleSpinComplete = useCallback((number: number) => {
+    // Le numéro passé ici est celui généré dans engine.spin() et affiché par la roue
     engine.resolveSpin();
     setHistory((prev) => [number, ...prev].slice(0, 50));
     setShowResult(true);
+  }, [engine]);
 
-    // Toast de résultat
-    if (engine.lastResult) {
+  // Affiche le toast après que lastResult soit mis à jour
+  useEffect(() => {
+    if (engine.lastResult && engine.status === 'result') {
       const netProfit = engine.lastResult.totalWon - engine.lastResult.totalLost;
       if (netProfit > 0) {
         toast.success(`Gain: ${netProfit / 100} ZVC$`, 4000);
@@ -50,7 +57,24 @@ export function RouletteTable() {
         toast.info(`Perte: ${Math.abs(netProfit) / 100} ZVC$`, 3000);
       }
     }
-  }, [engine]);
+  }, [engine.lastResult, engine.status, toast]);
+
+  // Place une mise sur le tapis
+  const handlePlaceBet = useCallback((type: BetType, numbers: number[]) => {
+    if (engine.status !== 'betting' && engine.status !== 'idle') return;
+
+    const bet: import('@/types').RouletteBet = {
+      id: `bet_${Date.now()}_${crypto.randomUUID()}`,
+      type,
+      numbers,
+      amount: selectedChip,
+    };
+
+    const success = engine.placeBet(bet);
+    if (!success) {
+      toast.warning('Solde insuffisant', 2000);
+    }
+  }, [engine, selectedChip, toast]);
 
   // Lance le spin
   const handleSpin = useCallback(() => {
@@ -115,7 +139,7 @@ export function RouletteTable() {
             <div className="flex justify-center">
               <RouletteWheel
                 isSpinning={engine.status === 'spinning'}
-                targetNumber={engine.lastResult?.winningNumber ?? null}
+                targetNumber={engine.winningNumber}
                 onSpinComplete={handleSpinComplete}
               />
             </div>
@@ -137,9 +161,13 @@ export function RouletteTable() {
         {/* Right: Betting table + Controls */}
         <div className="space-y-4">
           <GlassCard glowColor="gold" className="p-4">
-            {/* Betting Grid (simplified for MVP - display only) */}
+            {/* Betting Grid - interactif */}
             <div className="mb-4">
-              <BettingGrid disabled={!isBettingPhase} />
+              <BettingGrid
+                onPlaceBet={handlePlaceBet}
+                currentBets={currentBets}
+                disabled={!isBettingPhase}
+              />
             </div>
 
             {/* Chip Selector */}
@@ -154,7 +182,7 @@ export function RouletteTable() {
             {/* Current Bets Display */}
             <div className="border-t border-white/10 pt-4">
               <BetDisplay
-                bets={bets}
+                bets={currentBets}
                 totalBet={totalBet}
                 onRemove={(id) => engine.removeBet(id)}
                 onClear={engine.clearBets}

@@ -60,7 +60,7 @@ export function Header() {
           </motion.div>
         </div>
 
-        {/* Right: Balance + Sound */}
+        {/* Right: Balance + Sound + Reset */}
         <div className="flex items-center gap-3">
           {/* Balance */}
           <div className={clsx(
@@ -70,6 +70,19 @@ export function Header() {
           )}>
             <CurrencyDisplay amount={balance} size="md" />
           </div>
+
+          {/* Reset balance button */}
+          <NeonButton
+            variant="cyan"
+            size="sm"
+            onClick={() => usePlayerStore.getState().resetBalance()}
+            aria-label="Réinitialiser le solde à 10 000 ZVC$"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </NeonButton>
 
           {/* Sound toggle */}
           <NeonButton
