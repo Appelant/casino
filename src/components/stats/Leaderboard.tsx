@@ -3,23 +3,61 @@ import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { RankBadge } from '@/features/auth/components/RankBadge';
-import { usersRepo } from '@/db/users.repo';
-import type { UserRecord } from '@/db/schema';
+import { leaderboardApi } from '@/api/client';
 import { useAuthStore } from '@/stores/auth/authStore';
 import { formatCurrency } from '@/utils/currency';
 import { fadeIn } from '@/config/animations.config';
 
+interface LeaderboardPlayer {
+  id: string;
+  username: string;
+  balance: number;
+  elo: number;
+  total_games: number;
+  total_wins: number;
+  total_losses: number;
+  total_wagered: number;
+  total_won: number;
+  biggest_win: number;
+}
+
 /**
- * Leaderboard — classement global trié par ELO.
+ * Leaderboard — classement global trié par ELO (synchronisé serveur).
  * Met en évidence l'utilisateur connecté.
  */
 export function Leaderboard() {
   const currentUser = useAuthStore((s) => s.currentUser);
-  const [players, setPlayers] = useState<UserRecord[]>([]);
+  const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch initial
   useEffect(() => {
-    setPlayers(usersRepo.leaderboard(50));
-  }, [currentUser?.elo]);
+    fetchLeaderboard();
+  }, []);
+
+  // Refresh quand l'utilisateur courant change
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [currentUser?.elo, currentUser?.totalGames]);
+
+  // Polling pour rafraîchir le classement toutes les 5s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchLeaderboard();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function fetchLeaderboard() {
+    try {
+      const { players: fetched } = await leaderboardApi.get(50);
+      setPlayers(fetched);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Erreur fetch leaderboard:', err);
+      setIsLoading(false);
+    }
+  }
 
   return (
     <motion.div
@@ -38,7 +76,11 @@ export function Leaderboard() {
       </div>
 
       <GlassCard className="p-4">
-        {players.length === 0 ? (
+        {isLoading ? (
+          <p className="text-center text-white/40 py-12">
+            Chargement du classement...
+          </p>
+        ) : players.length === 0 ? (
           <p className="text-center text-white/40 py-12">
             Aucun joueur classé pour l'instant.
           </p>
@@ -47,8 +89,8 @@ export function Leaderboard() {
             {players.map((player, index) => {
               const isMe = currentUser?.id === player.id;
               const winRate =
-                player.totalGames > 0
-                  ? Math.round((player.totalWins / player.totalGames) * 100)
+                player.total_games > 0
+                  ? Math.round((player.total_wins / player.total_games) * 100)
                   : 0;
 
               return (
@@ -90,7 +132,7 @@ export function Leaderboard() {
                       )}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-white/40 mt-0.5">
-                      <span>{player.totalGames} parties</span>
+                      <span>{player.total_games} parties</span>
                       <span>•</span>
                       <span>{winRate}% WR</span>
                       <span>•</span>

@@ -9,7 +9,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GameResult } from '@/types';
 import { STORAGE_KEYS } from '@/utils/storage/storageKeys';
-import { useHistoryStore } from '../history/historyStore';
+import { useAuthStore } from '../auth/authStore';
 
 // ============================================
 // TYPES
@@ -158,7 +158,7 @@ export const useUserStatsStore = create<UserStatsStore>()(
 
       // Sélecteurs dérivés
       getUserStats: () => {
-        const history = useHistoryStore.getState().rounds;
+        const history = useAuthStore.getState().currentUser?.rounds ?? [];
         return calculateUserStats(history);
       },
 

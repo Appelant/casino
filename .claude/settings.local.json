@@ -18,7 +18,17 @@
       "Bash(powershell:*)",
       "mcp__ide__executeCode",
       "Bash(python:*)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(curl -s http://localhost:3001/health)",
+      "Bash(Start-Sleep -Seconds 3)",
+      "Bash(curl:*)",
+      "Bash(npx serve:*)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :3000)",
+      "Bash(taskkill:*)",
+      "Bash(findstr :3001)",
+      "Bash(grep -o \"http://[^\\\\\"']*\" dist/assets/index-*.js)",
+      "Bash(grep -a \"VITE_API_URL\\\\|localhost:3001\\\\|10.96.16.50:3001\" dist/assets/index-*.js)"
     ]
   }
 }

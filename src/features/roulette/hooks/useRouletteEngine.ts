@@ -10,7 +10,6 @@ import type { RouletteBet, SpinResult, GameResult } from '@/types';
 import { secureRandomInt } from '../../../utils/rng/rng';
 import { resolveBets } from '../utils/betResolver';
 import { usePlayerStore } from '@/stores';
-import { useHistoryStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth/authStore';
 import { ROULETTE_PAYOUTS } from '../utils/rouletteConstants';
 
@@ -92,7 +91,6 @@ export function useRouletteEngine() {
   const playerBalance = usePlayerStore((s) => s.balance);
   const playerPlaceBet = usePlayerStore((s) => s.placeBet);
   const playerReceiveWin = usePlayerStore((s) => s.receiveWin);
-  const addRound = useHistoryStore((s) => s.addRound);
 
   // Ref pour éviter les appels multiples
   const isProcessing = useRef(false);
@@ -183,7 +181,7 @@ export function useRouletteEngine() {
     // Mettre à jour l'état
     dispatch({ type: 'RESOLVE', payload: result });
 
-    // Enregistrer le round
+    // Construire le round à enregistrer
     const round: GameResult = {
       id: `round_${Date.now()}`,
       gameId: 'roulette' as const,
@@ -205,14 +203,12 @@ export function useRouletteEngine() {
       },
     };
 
-    addRound(round);
-
-    // Si gain net, créditer
+    // Créditer le joueur si gain
     if (result.totalWon > 0) {
       playerReceiveWin(result.totalWon);
     }
 
-    // Enregistrer le round pour ELO + stats + historique utilisateur
+    // Enregistrer le round pour ELO + stats + historique utilisateur (DB + sync authStore)
     const currentBalance = useAuthStore.getState().currentUser?.balance ?? 0;
     useAuthStore.getState().recordRound({
       wagered: result.totalLost,
@@ -224,7 +220,7 @@ export function useRouletteEngine() {
     });
 
     isProcessing.current = false;
-  }, [state.status, state.currentBets, state.winningNumber, addRound, playerReceiveWin]);
+  }, [state.status, state.currentBets, state.winningNumber, playerReceiveWin]);
 
   /**
    * Réinitialise pour une nouvelle partie

@@ -1,73 +1,70 @@
-# React + TypeScript + Vite
+# ZéroVirguleChance - Casino Fictif
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Application web de casino fictif (Roulette & Blackjack) avec classement synchronisé multi-appareils.
 
-Currently, two official plugins are available:
+## Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Frontend** : React + TypeScript + Vite + Tailwind
+- **Backend** : Node.js + Express + SQLite (better-sqlite3)
+- **Synchronisation** : API REST pour synchroniser les données entre appareils
 
-## React Compiler
+## Démarrage rapide
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Option 1 : Script batch (Windows)
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+start-server.bat
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Ce script démarre :
+1. Le serveur backend (port 3001) dans une nouvelle fenêtre
+2. Le serveur frontend (port 3000)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Option 2 : Commandes manuelles
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+**Terminal 1 - Backend :**
+```bash
+npm run server
 ```
+
+**Terminal 2 - Frontend :**
+```bash
+npm run dev
+```
+
+## URLs d'accès
+
+- Frontend : http://localhost:3000
+- Backend API : http://localhost:3001
+- Health check : http://localhost:3001/health
+
+## API Endpoints
+
+### Authentification
+- `POST /api/auth/register` - Créer un compte
+- `POST /api/auth/login` - Se connecter
+
+### Utilisateur
+- `GET /api/users/:id` - Récupérer les données utilisateur + historique
+- `PATCH /api/users/:id` - Mettre à jour (balance, elo, stats)
+- `POST /api/users/:id/rounds` - Ajouter un round à l'historique
+- `DELETE /api/users/:id/rounds` - Effacer l'historique
+
+### Classement
+- `GET /api/leaderboard?limit=50` - Top joueurs par ELO
+
+## Base de données
+
+Les données sont stockées dans `data/zvc.db` (SQLite).
+
+Pour réinitialiser complètement :
+```bash
+curl -X DELETE http://localhost:3001/api/admin/clear-all
+```
+
+## Synchronisation multi-appareils
+
+Le leaderboard et les comptes sont synchronisés via le backend. Pour accéder au même compte depuis plusieurs appareils :
+1. Créez un compte sur le premier appareil
+2. Connectez-vous avec le même pseudo/mot de passe sur les autres appareils
+3. Les données sont partagées automatiquement

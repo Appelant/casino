@@ -8,7 +8,6 @@
 import { useReducer, useCallback, useRef } from 'react';
 import type { Card, Hand } from '@/types';
 import { usePlayerStore } from '@/stores';
-import { useHistoryStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth/authStore';
 import { uuid } from '@/utils/rng/uuid';
 import { createHand, calculateHand, compareHands } from '../utils/handCalculator';
@@ -180,7 +179,6 @@ export function useBlackjackEngine() {
 
   // Stores externes
   const playerStore = usePlayerStore();
-  const addRound = useHistoryStore((s) => s.addRound);
 
   // Gestion du sabot
   const { draw, resetShoe, needsShuffle } = useBlackjackDeck();
@@ -515,7 +513,8 @@ export function useBlackjackEngine() {
         playerStore.receiveWin(totalPayout);
       }
 
-      // Enregistrer chaque main dans l'historique
+      // Enregistrer chaque main splitée dans la DB via recordRound
+      const currentBalance = useAuthStore.getState().currentUser?.balance ?? 0;
       for (const result of results) {
         const round: import('@/types').GameResult = {
           id: `bj_${uuid()}`,
@@ -536,7 +535,14 @@ export function useBlackjackEngine() {
             isSplit: true,
           },
         };
-        addRound(round);
+        useAuthStore.getState().recordRound({
+          wagered: state.currentBet,
+          won: result.payout,
+          netProfit: result.payout - state.currentBet,
+          isWin: result.payout > state.currentBet,
+          newBalance: currentBalance,
+          round,
+        });
       }
 
       isProcessing.current = false;
@@ -592,47 +598,44 @@ export function useBlackjackEngine() {
         playerStore.receiveWin(payout);
       }
 
-      // Enregistrer dans l'historique
-      if (playerHand && dealerHand) {
-        const totalWagered = state.currentBet + state.perfectPairsBet + state.twentyOnePlusThreeBet;
-        const totalWon = payout + (sideBetResults?.reduce((sum, r) => sum + r.payout, 0) ?? 0);
+      // ELO + stats + historique utilisateur (DB + sync authStore)
+      if (!playerHand || !dealerHand) return;
 
-        const round: import('@/types').GameResult = {
-          id: `bj_${Date.now()}`,
-          gameId: 'blackjack' as const,
-          timestamp: Date.now(),
-          wagered: totalWagered,
-          won: totalWon,
-          netProfit: totalWon - totalWagered,
-          isWin: totalWon > totalWagered,
-          details: {
-            playerHand: playerHand.cards.map((c) => `${c.rank}${c.suit[0]}`),
-            dealerHand: dealerHand.cards.map((c) => `${c.rank}${c.suit[0]}`),
-            playerTotal: playerHand.total,
-            dealerTotal: dealerHand.total,
-            outcome,
-            isBlackjack: playerHand.isBlackjack,
-            isDouble: false,
-            isSplit: state.playerHands !== null,
-          },
-        };
+      const totalWagered = state.currentBet + state.perfectPairsBet + state.twentyOnePlusThreeBet;
+      const totalWon = payout + (sideBetResults?.reduce((sum, r) => sum + r.payout, 0) ?? 0);
 
-        addRound(round);
-
-        // ELO + stats + historique utilisateur
-        const currentBalance = useAuthStore.getState().currentUser?.balance ?? 0;
-        useAuthStore.getState().recordRound({
-          wagered: totalWagered,
-          won: totalWon,
-          netProfit: totalWon - totalWagered,
-          isWin: totalWon > totalWagered,
+      const round: import('@/types').GameResult = {
+        id: `bj_${Date.now()}`,
+        gameId: 'blackjack' as const,
+        timestamp: Date.now(),
+        wagered: totalWagered,
+        won: totalWon,
+        netProfit: totalWon - totalWagered,
+        isWin: totalWon > totalWagered,
+        details: {
+          playerHand: playerHand.cards.map((c) => `${c.rank}${c.suit[0]}`),
+          dealerHand: dealerHand.cards.map((c) => `${c.rank}${c.suit[0]}`),
+          playerTotal: playerHand.total,
+          dealerTotal: dealerHand.total,
+          outcome,
           isBlackjack: playerHand.isBlackjack,
-          newBalance: currentBalance,
-          round,
-        });
-      }
+          isDouble: false,
+          isSplit: state.playerHands !== null,
+        },
+      };
+
+      const currentBalance = useAuthStore.getState().currentUser?.balance ?? 0;
+      useAuthStore.getState().recordRound({
+        wagered: totalWagered,
+        won: totalWon,
+        netProfit: totalWon - totalWagered,
+        isWin: totalWon > totalWagered,
+        isBlackjack: playerHand.isBlackjack,
+        newBalance: currentBalance,
+        round,
+      });
     },
-    [state.currentBet, state.perfectPairsBet, state.twentyOnePlusThreeBet, state.playerHands, playerStore, addRound]
+    [state.currentBet, state.perfectPairsBet, state.twentyOnePlusThreeBet, state.playerHands, playerStore]
   );
 
   /**
