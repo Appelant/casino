@@ -20,9 +20,17 @@ export type {
   GameResult,
   RouletteRoundDetails,
   BlackjackRoundDetails,
+  DiceRoundDetails,
   RouletteBetSummary,
   RoundStatus,
 } from './game.types';
+
+// Dice types
+export type {
+  DiceFace,
+  DiceBet,
+  DiceResult,
+} from './dice.types';
 
 // Roulette types
 export type {

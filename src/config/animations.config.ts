@@ -201,6 +201,34 @@ export const chipPlace: Variants = {
 };
 
 // ============================================
+// DICE ROLL
+// ============================================
+
+export const diceRoll: Variants = {
+  idle: { rotate: 0, scale: 1 },
+  rolling: {
+    rotate: [0, -15, 15, -10, 10, -5, 5, 0],
+    scale: [1, 1.08, 0.95, 1.05, 0.97, 1.03, 0.99, 1],
+    transition: {
+      duration: 0.6,
+      repeat: Infinity,
+      repeatType: 'loop' as const,
+      ease: 'easeInOut',
+    },
+  },
+  landing: {
+    scale: [1.1, 0.92, 1.04, 0.98, 1],
+    transition: { duration: 0.4, ease: 'easeOut' },
+  },
+};
+
+export const diceRollReduced: Variants = {
+  idle: { opacity: 1 },
+  rolling: { opacity: 0.5, transition: { duration: 0.1 } },
+  landing: { opacity: 1, transition: { duration: 0.1 } },
+};
+
+// ============================================
 // UTILITY: CHECK REDUCED MOTION
 // ============================================
 

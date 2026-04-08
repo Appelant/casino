@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/auth/authStore';
 import { formatCurrency } from '@/utils/currency';
 import { fadeIn } from '@/config/animations.config';
 
-type GameFilter = 'all' | 'roulette' | 'blackjack';
+type GameFilter = 'all' | 'roulette' | 'blackjack' | 'dice';
 
 /**
  * HistoryPanel — affichage paginé de l'historique des rounds
@@ -52,8 +52,8 @@ export function HistoryPanel() {
       </div>
 
       {/* Filtres */}
-      <div className="flex gap-2 mb-4">
-        {(['all', 'roulette', 'blackjack'] as const).map((f) => (
+      <div className="flex flex-wrap gap-2 mb-4">
+        {(['all', 'roulette', 'blackjack', 'dice'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -64,7 +64,7 @@ export function HistoryPanel() {
                 : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10'
             )}
           >
-            {f === 'all' ? 'Tous' : f === 'roulette' ? 'Roulette' : 'Blackjack'}
+            {f === 'all' ? 'Tous' : f === 'roulette' ? '🎡 Roulette' : f === 'blackjack' ? '🃏 Blackjack' : '🎲 Dés'}
           </button>
         ))}
       </div>
@@ -89,7 +89,7 @@ export function HistoryPanel() {
               >
                 <div className="flex items-center gap-3">
                   <span className="text-xl">
-                    {round.gameId === 'roulette' ? '🎡' : '🃏'}
+                    {round.gameId === 'roulette' ? '🎡' : round.gameId === 'blackjack' ? '🃏' : '🎲'}
                   </span>
                   <div>
                     <div className="text-sm font-medium text-white/90">
@@ -99,6 +99,9 @@ export function HistoryPanel() {
                       {round.gameId === 'blackjack' &&
                         'outcome' in round.details &&
                         round.details.outcome}
+                      {round.gameId === 'dice' &&
+                        'rolledFace' in round.details &&
+                        `Face ${round.details.rolledFace} — misé sur ${round.details.chosenFace}`}
                     </div>
                     <div className="text-xs text-white/40">
                       {new Date(round.timestamp).toLocaleString('fr-FR')}

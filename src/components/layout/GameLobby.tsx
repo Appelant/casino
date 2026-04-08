@@ -44,11 +44,29 @@ export function GameLobby() {
         'Double & Split disponibles',
       ],
     },
+    {
+      id: 'dice' as const,
+      title: 'Jeu du Dé',
+      description: 'Choisissez une face de 1 à 6 et lancez le dé. Si vous avez raison, vous gagnez 6× votre mise !',
+      icon: (
+        <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      ),
+      color: 'cyan',
+      rules: [
+        'Dé à 6 faces',
+        'Choisissez votre numéro',
+        'Gagnez 6× si bonne face',
+      ],
+    },
   ];
 
   const colorClasses = {
     purple: 'from-neon-purple/20 to-neon-purple/5 border-neon-purple/30',
     gold: 'from-neon-gold/20 to-neon-gold/5 border-neon-gold/30',
+    cyan: 'from-neon-cyan/20 to-neon-cyan/5 border-neon-cyan/30',
   };
 
   return (
@@ -85,17 +103,17 @@ export function GameLobby() {
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
-        className="grid md:grid-cols-2 gap-6"
+        className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
       >
         {games.map((game) => (
           <motion.div key={game.id} variants={staggerItem}>
             <GlassCard
-              glowColor={game.color as 'purple' | 'gold'}
+              glowColor={game.color as 'purple' | 'gold' | 'cyan'}
               hover
               className={clsx(
                 'h-full p-6',
                 'bg-gradient-to-br',
-                colorClasses[game.color as 'purple' | 'gold']
+                colorClasses[game.color as 'purple' | 'gold' | 'cyan']
               )}
             >
               <div className="flex flex-col h-full">
@@ -103,7 +121,7 @@ export function GameLobby() {
                 <div className={clsx(
                   'w-20 h-20 rounded-xl mb-4 flex items-center justify-center',
                   'bg-white/5 border border-white/10',
-                  game.color === 'purple' ? 'text-neon-purple' : 'text-neon-gold'
+                  game.color === 'purple' ? 'text-neon-purple' : game.color === 'gold' ? 'text-neon-gold' : 'text-neon-cyan'
                 )}>
                   {game.icon}
                 </div>
@@ -125,7 +143,7 @@ export function GameLobby() {
                 {/* CTA Button */}
                 <Link to={`/${game.id}`}>
                   <NeonButton
-                    variant={game.color as 'purple' | 'gold'}
+                    variant={game.color as 'purple' | 'gold' | 'cyan'}
                     size="lg"
                     className="w-full"
                   >

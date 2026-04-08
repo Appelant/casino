@@ -48,6 +48,16 @@ export const GAME_CONFIG = {
   BJ_DEALER_HITS_SOFT_17: true,
 
   // ============================================
+  // CONFIGURATION DÉS
+  // ============================================
+
+  /** Nombre de faces du dé */
+  DICE_SIDES: 6,
+
+  /** Payout en cas de victoire (6:1) */
+  DICE_PAYOUT: 6,
+
+  // ============================================
   // CONFIGURATION SESSION
   // ============================================
 

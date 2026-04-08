@@ -54,13 +54,12 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
   // Stats par jeu - avec états locaux pour persistance
   const [rouletteStats, setRouletteStats] = useState<UserStats>(() => calculateUserStats(rounds.filter((r) => r.gameId === 'roulette')));
   const [blackjackStats, setBlackjackStats] = useState<UserStats>(() => calculateUserStats(rounds.filter((r) => r.gameId === 'blackjack')));
+  const [diceStats, setDiceStats] = useState<UserStats>(() => calculateUserStats(rounds.filter((r) => r.gameId === 'dice')));
 
   useEffect(() => {
     setRouletteStats(calculateUserStats(rounds.filter((r) => r.gameId === 'roulette')));
-  }, [rounds]);
-
-  useEffect(() => {
     setBlackjackStats(calculateUserStats(rounds.filter((r) => r.gameId === 'blackjack')));
+    setDiceStats(calculateUserStats(rounds.filter((r) => r.gameId === 'dice')));
   }, [rounds]);
 
   // Derniers rounds
@@ -172,11 +171,11 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="text-5xl">
-                {bestWin.gameId === 'roulette' ? '🎡' : '🃏'}
+                {bestWin.gameId === 'roulette' ? '🎡' : bestWin.gameId === 'blackjack' ? '🃏' : '🎲'}
               </div>
               <div>
                 <div className="text-sm text-white/50 uppercase tracking-wider">
-                  {bestWin.gameId === 'roulette' ? 'Roulette' : 'Blackjack'}
+                  {bestWin.gameId === 'roulette' ? 'Roulette' : bestWin.gameId === 'blackjack' ? 'Blackjack' : 'Dés'}
                 </div>
                 <div className="text-xs text-white/40 mt-1">
                   {new Date(bestWin.timestamp).toLocaleString('fr-FR')}
@@ -206,7 +205,7 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
       </GlassCard>
 
       {/* Stats par jeu */}
-      <div className="grid md:grid-cols-2 gap-6 mb-6">
+      <div className="grid md:grid-cols-3 gap-6 mb-6">
         {/* Roulette */}
         <GlassCard glowColor="purple" className="p-5">
           <div className="flex items-center gap-3 mb-4">
@@ -242,6 +241,26 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
             <StatRow
               label="Net"
               value={`${(blackjackStats.totalWon - blackjackStats.totalWagered) >= 0 ? '+' : ''}${formatCurrency(blackjackStats.totalWon - blackjackStats.totalWagered)}`}
+              highlight
+            />
+          </div>
+        </GlassCard>
+
+        {/* Dés */}
+        <GlassCard glowColor="cyan" className="p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-2xl">🎲</span>
+            <h3 className="text-lg font-bold text-white">Dés</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <StatRow label="Parties" value={diceStats.totalGames.toString()} />
+            <StatRow label="Victoires" value={diceStats.totalWins.toString()} />
+            <StatRow label="Défaites" value={diceStats.totalLosses.toString()} />
+            <StatRow label="Misé" value={formatCurrency(diceStats.totalWagered)} />
+            <StatRow label="Gagné" value={formatCurrency(diceStats.totalWon)} />
+            <StatRow
+              label="Net"
+              value={`${(diceStats.totalWon - diceStats.totalWagered) >= 0 ? '+' : ''}${formatCurrency(diceStats.totalWon - diceStats.totalWagered)}`}
               highlight
             />
           </div>
@@ -306,10 +325,11 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <span>{round.gameId === 'roulette' ? '🎡' : '🃏'}</span>
+                    <span>{round.gameId === 'roulette' ? '🎡' : round.gameId === 'blackjack' ? '🃏' : '🎲'}</span>
                     <span className="text-white/80">
                       {round.gameId === 'roulette' && 'winningNumber' in round.details && `N°${round.details.winningNumber}`}
                       {round.gameId === 'blackjack' && 'outcome' in round.details && round.details.outcome}
+                      {round.gameId === 'dice' && 'rolledFace' in round.details && `Face ${round.details.rolledFace}`}
                     </span>
                   </div>
                   <span className={clsx(

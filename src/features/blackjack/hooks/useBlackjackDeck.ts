@@ -69,6 +69,21 @@ export function useBlackjackDeck() {
     shoeRef.current = buildShoe(BLACKJACK_CONFIG.numDecks);
   }, []);
 
+  /**
+   * Retourne une copie du sabot courant (pour persistance)
+   */
+  const getShoe = useCallback((): Shoe => ({
+    ...shoeRef.current,
+    cards: [...shoeRef.current.cards],
+  }), []);
+
+  /**
+   * Restaure un sabot sauvegardé (après refresh de page)
+   */
+  const restoreShoe = useCallback((shoe: Shoe) => {
+    shoeRef.current = shoe;
+  }, []);
+
   return {
     draw,
     shuffle,
@@ -77,5 +92,7 @@ export function useBlackjackDeck() {
     remainingPercent,
     cardsRemaining,
     totalCards,
+    getShoe,
+    restoreShoe,
   };
 }

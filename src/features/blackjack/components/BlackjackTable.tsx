@@ -25,9 +25,12 @@ export function BlackjackTable() {
   // State local
   const [showResult, setShowResult] = useState(false);
 
-  // Reset au montage
+  // Reset au montage — sauf si une partie en cours a été restaurée depuis localStorage
   useEffect(() => {
-    engine.reset();
+    if (engine.status !== 'playerTurn') {
+      engine.reset();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Place les mises (principale + side bets) et distribue les cartes

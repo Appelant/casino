@@ -23,6 +23,7 @@ export function Header() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const logout = useAuthStore((s) => s.logout);
   const setBalance = useAuthStore((s) => s.setBalance);
+  const clearHistory = useAuthStore((s) => s.clearHistory);
   const soundEnabled = useUIStore((state) => state.soundEnabled);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const toggleSound = useUIStore((state) => state.toggleSound);
@@ -151,9 +152,9 @@ export function Header() {
       <ConfirmDialog
         isOpen={showReloadConfirm}
         onClose={() => setShowReloadConfirm(false)}
-        onConfirm={() => setBalance(GAME_CONFIG.STARTING_BALANCE)}
+        onConfirm={() => { setBalance(GAME_CONFIG.STARTING_BALANCE); void clearHistory(); }}
         title="Recharger le solde ?"
-        message="Votre solde sera remis à 10 000 ZVC$. Votre progression (rang, stats) reste intacte."
+        message="Votre solde sera remis à 10 000 ZVC$. L'historique des parties sera effacé. Votre rang reste intact."
         confirmLabel="Recharger"
         variant="warning"
       />

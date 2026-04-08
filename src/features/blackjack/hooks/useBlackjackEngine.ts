@@ -5,8 +5,8 @@
  * États: idle → bet → deal → playerTurn → dealerTurn → settle → idle
  */
 
-import { useReducer, useCallback, useRef } from 'react';
-import type { Card, Hand } from '@/types';
+import { useReducer, useCallback, useRef, useEffect } from 'react';
+import type { Card, Hand, Shoe } from '@/types';
 import { usePlayerStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth/authStore';
 import { uuid } from '@/utils/rng/uuid';
@@ -155,10 +155,57 @@ function blackjackReducer(state: BlackjackState, action: BlackjackAction): Black
 }
 
 // ============================================
+// PERSISTANCE DE SESSION (anti-exploit refresh)
+// ============================================
+
+const BJ_SESSION_KEY = 'ZVC_BJ_SESSION';
+
+interface BJSession {
+  state: BlackjackState;
+  shoe: Shoe;
+}
+
+function loadBJSession(): BJSession | null {
+  try {
+    const saved = localStorage.getItem(BJ_SESSION_KEY);
+    return saved ? (JSON.parse(saved) as BJSession) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveBJSession(state: BlackjackState, shoe: Shoe): void {
+  try {
+    // On ne sauvegarde pas les états terminaux ou de transition
+    if (state.status === 'idle' || state.status === 'settle') {
+      localStorage.removeItem(BJ_SESSION_KEY);
+    } else {
+      localStorage.setItem(BJ_SESSION_KEY, JSON.stringify({ state, shoe }));
+    }
+  } catch {}
+}
+
+function clearBJSession(): void {
+  try {
+    localStorage.removeItem(BJ_SESSION_KEY);
+  } catch {}
+}
+
+/** Restaure l'état du jeu depuis localStorage si une partie est en cours */
+function getInitialState(): BlackjackState {
+  const session = loadBJSession();
+  // On ne restaure que le tour du joueur (état interactif persistable)
+  if (session?.state.status === 'playerTurn') {
+    return session.state;
+  }
+  return INITIAL_STATE_DEFAULT;
+}
+
+// ============================================
 // HOOK PRINCIPAL
 // ============================================
 
-const INITIAL_STATE: BlackjackState = {
+const INITIAL_STATE_DEFAULT: BlackjackState = {
   status: 'idle',
   playerHand: null,
   playerHands: null,
@@ -174,17 +221,40 @@ const INITIAL_STATE: BlackjackState = {
   error: null,
 };
 
+// La constante de l'état initial (anciennement INITIAL_STATE)
+const INITIAL_STATE = INITIAL_STATE_DEFAULT;
+
 export function useBlackjackEngine() {
-  const [state, dispatch] = useReducer(blackjackReducer, INITIAL_STATE);
+  // Initialisation : restaure la session sauvegardée si elle existe
+  const [state, dispatch] = useReducer(blackjackReducer, undefined, getInitialState);
 
   // Stores externes
   const playerStore = usePlayerStore();
 
   // Gestion du sabot
-  const { draw, resetShoe, needsShuffle } = useBlackjackDeck();
+  const { draw, resetShoe, needsShuffle, getShoe, restoreShoe } = useBlackjackDeck();
 
   // Ref pour éviter les appels multiples
   const isProcessing = useRef(false);
+
+  // Restaure le sabot sauvegardé au premier montage (si session playerTurn restaurée)
+  const didRestoreShoe = useRef(false);
+  useEffect(() => {
+    if (didRestoreShoe.current) return;
+    didRestoreShoe.current = true;
+    if (state.status === 'playerTurn') {
+      const session = loadBJSession();
+      if (session?.shoe) {
+        restoreShoe(session.shoe);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persistance automatique à chaque changement d'état
+  useEffect(() => {
+    saveBJSession(state, getShoe());
+  }, [state, getShoe]);
 
   /**
    * Démarre la phase de mise
@@ -205,6 +275,11 @@ export function useBlackjackEngine() {
       dispatch({ type: 'SET_ERROR', payload: 'Solde insuffisant' });
       return false;
     }
+
+    // Immédiatement persister le solde déduit en DB
+    // → empêche le joueur de récupérer sa mise en rafraîchissant la page
+    const newBalance = useAuthStore.getState().currentUser?.balance ?? 0;
+    void useAuthStore.getState().setBalance(newBalance);
 
     dispatch({
       type: 'PLACE_BET',
@@ -642,6 +717,7 @@ export function useBlackjackEngine() {
    * Réinitialise pour une nouvelle partie
    */
   const reset = useCallback(() => {
+    clearBJSession();
     dispatch({ type: 'RESET' });
   }, []);
 
