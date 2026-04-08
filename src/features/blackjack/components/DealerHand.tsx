@@ -35,6 +35,18 @@ export function DealerHand({
     return sum + value;
   }, 0);
 
+  // Créer une main "virtuelle" pour l'affichage du score visible seulement
+  const visibleHandForDisplay = isPlaying && !isRevealed
+    ? {
+        cards: showingCards,
+        total: visibleScore,
+        isSoft: false,
+        isBust: false,
+        isBlackjack: false,
+        isSplit: false,
+      }
+    : hand;
+
   return (
     <GlassCard glowColor="purple" className="p-4">
       <div className="flex flex-col items-center gap-4">
@@ -53,19 +65,12 @@ export function DealerHand({
           hiddenCardIndex={isPlaying && !isRevealed ? 1 : undefined}
         />
 
-        {/* Score */}
+        {/* Score - affiche seulement la carte visible pendant le jeu */}
         <ScoreDisplay
-          hand={hand}
-          isBust={hand?.isBust}
-          isBlackjack={hand?.isBlackjack}
+          hand={visibleHandForDisplay}
+          isBust={visibleHandForDisplay?.isBust}
+          isBlackjack={visibleHandForDisplay?.isBlackjack}
         />
-
-        {/* Hint during play */}
-        {isPlaying && !isRevealed && (
-          <div className="text-xs text-white/40">
-            Carte visible: {visibleScore}
-          </div>
-        )}
       </div>
     </GlassCard>
   );

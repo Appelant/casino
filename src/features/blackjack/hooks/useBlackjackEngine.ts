@@ -516,7 +516,7 @@ export function useBlackjackEngine() {
       // Enregistrer chaque main dans l'historique
       for (const result of results) {
         const round: import('@/types').GameResult = {
-          id: `bj_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          id: `bj_${crypto.randomUUID()}`,
           gameId: 'blackjack' as const,
           timestamp: Date.now(),
           wagered: state.currentBet,
@@ -608,7 +608,7 @@ export function useBlackjackEngine() {
             dealerHand: dealerHand.cards.map((c) => `${c.rank}${c.suit[0]}`),
             playerTotal: playerHand.total,
             dealerTotal: dealerHand.total,
-            outcome: outcome as any,
+            outcome,
             isBlackjack: playerHand.isBlackjack,
             isDouble: false,
             isSplit: state.playerHands !== null,

@@ -87,8 +87,10 @@ const INITIAL_STATE: RouletteState = {
 export function useRouletteEngine() {
   const [state, dispatch] = useReducer(rouletteReducer, INITIAL_STATE);
 
-  // Stores externes
-  const playerStore = usePlayerStore();
+  // Stores externes - accès direct aux valeurs et actions
+  const playerBalance = usePlayerStore((s) => s.balance);
+  const playerPlaceBet = usePlayerStore((s) => s.placeBet);
+  const playerReceiveWin = usePlayerStore((s) => s.receiveWin);
   const addRound = useHistoryStore((s) => s.addRound);
 
   // Ref pour éviter les appels multiples
@@ -109,16 +111,17 @@ export function useRouletteEngine() {
       return false;
     }
 
-    // Vérifier le solde
-    const canBet = playerStore.placeBet(bet.amount);
-    if (!canBet) {
+    // Vérifier le solde du joueur
+    if (playerBalance < bet.amount) {
       dispatch({ type: 'SET_ERROR', payload: 'Solde insuffisant' });
       return false;
     }
 
+    // Déduire du solde ET ajouter la mise
+    playerPlaceBet(bet.amount);
     dispatch({ type: 'PLACE_BET', payload: bet });
     return true;
-  }, [state.status, playerStore]);
+  }, [state.status, playerBalance, playerPlaceBet]);
 
   /**
    * Supprime une mise
@@ -129,10 +132,10 @@ export function useRouletteEngine() {
     const bet = state.currentBets.find((b) => b.id === betId);
     if (bet) {
       // Rembourser la mise
-      playerStore.receiveWin(bet.amount);
+      playerReceiveWin(bet.amount);
       dispatch({ type: 'REMOVE_BET', payload: betId });
     }
-  }, [state.status, state.currentBets, playerStore]);
+  }, [state.status, state.currentBets, playerReceiveWin]);
 
   /**
    * Annule toutes les mises
@@ -142,9 +145,9 @@ export function useRouletteEngine() {
 
     // Rembourser toutes les mises
     const total = state.currentBets.reduce((sum, b) => sum + b.amount, 0);
-    playerStore.receiveWin(total);
+    playerReceiveWin(total);
     dispatch({ type: 'CLEAR_BETS' });
-  }, [state.status, state.currentBets, playerStore]);
+  }, [state.status, state.currentBets, playerReceiveWin]);
 
   /**
    * Lance le spin de la roue
@@ -205,11 +208,11 @@ export function useRouletteEngine() {
 
     // Si gain net, créditer
     if (result.totalWon > 0) {
-      playerStore.receiveWin(result.totalWon);
+      playerReceiveWin(result.totalWon);
     }
 
     isProcessing.current = false;
-  }, [state.status, state.currentBets, state.winningNumber, addRound, playerStore]);
+  }, [state.status, state.currentBets, state.winningNumber, addRound, playerReceiveWin]);
 
   /**
    * Réinitialise pour une nouvelle partie

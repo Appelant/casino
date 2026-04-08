@@ -8,6 +8,9 @@ export { selectCanBet, selectNetProfit, selectBalance, selectUsername, selectAva
 export { useStatsStore } from './stats/statsStore';
 export { selectRTP, selectWinRate, selectSessionDuration, selectStreakStatus, selectAverageBet, formatSessionDuration } from './stats/statsStore.selectors';
 
+export { useUserStatsStore, calculateUserStats } from './stats/userStatsStore';
+export type { UserStats } from './stats/userStatsStore';
+
 export { useHistoryStore } from './history/historyStore';
 export { selectLastRound, selectRoundsByGame, selectRecentTrend, selectLast10Rounds, selectTotalRounds, selectRecentRTP } from './history/historyStore.selectors';
 

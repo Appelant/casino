@@ -11,6 +11,9 @@ export const STORAGE_KEYS = {
   /** Statistiques globales */
   STATS: 'ZVC_STATS',
 
+  /** Statistiques par utilisateur (pseudo) */
+  USER_STATS: 'ZVC_USER_STATS',
+
   /** Historique des rounds (50 entrées max) */
   HISTORY: 'ZVC_HISTORY',
 

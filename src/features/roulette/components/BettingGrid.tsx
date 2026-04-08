@@ -2,7 +2,7 @@ import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
 import { useCallback } from 'react';
 import type { BetType, RouletteBet } from '@/types';
-import { getNumberColor, RED_NUMBERS } from '../utils/rouletteNumbers';
+import { getNumberColor, RED_NUMBERS, BLACK_NUMBERS, EVEN_NUMBERS, ODD_NUMBERS, MANQUE_NUMBERS, PASSE_NUMBERS } from '../utils/rouletteNumbers';
 import { staggerContainer } from '@/config/animations.config';
 import { chipPlace } from '@/config/animations.config';
 
@@ -28,9 +28,9 @@ export function BettingGrid({
   // Compter les mises par zone
   const getBetCount = useCallback(
     (type: BetType, numbers: number[]) => {
-      const key = `${type}-${numbers.sort().join('-')}`;
+      const key = `${type}-${[...numbers].sort((a, b) => a - b).join('-')}`;
       return currentBets.filter((b) => {
-        const betKey = `${b.type}-${b.numbers.sort().join('-')}`;
+        const betKey = `${b.type}-${[...b.numbers].sort((a, b) => a - b).join('-')}`;
         return betKey === key;
       }).length;
     },
@@ -40,9 +40,8 @@ export function BettingGrid({
   // Placer une mise
   const handleBet = useCallback(
     (type: BetType, numbers: number[]) => {
-      if (!disabled) {
-        onPlaceBet(type, numbers);
-      }
+      if (disabled) return;
+      onPlaceBet(type, numbers);
     },
     [disabled, onPlaceBet]
   );
@@ -73,6 +72,7 @@ export function BettingGrid({
           'relative rounded-lg font-bold flex items-center justify-center',
           'border-2 transition-all duration-150',
           'hover:scale-105 hover:shadow-lg',
+          'cursor-pointer active:scale-95',
           disabled && 'opacity-50 cursor-not-allowed hover:scale-100 hover:shadow-none',
           className
         )}
@@ -81,6 +81,7 @@ export function BettingGrid({
           gridRow: rowSpan > 1 ? `span ${rowSpan}` : undefined,
         }}
         aria-label={`Miser sur ${children}`}
+        type="button"
       >
         {children}
         {count > 0 && (
@@ -246,14 +247,14 @@ export function BettingGrid({
         <div className="col-span-12 grid grid-cols-6 gap-1">
           <BetCell
             type="manque"
-            numbers={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}
+            numbers={MANQUE_NUMBERS}
             className="h-12 bg-white/5 border-white/20 text-white/60 text-sm"
           >
             1-18
           </BetCell>
           <BetCell
             type="pair"
-            numbers={[2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36]}
+            numbers={EVEN_NUMBERS}
             className="h-12 bg-white/5 border-white/20 text-white/60 text-sm"
           >
             PAIR
@@ -267,21 +268,21 @@ export function BettingGrid({
           </BetCell>
           <BetCell
             type="noir"
-            numbers={[2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35]}
+            numbers={Array.from(BLACK_NUMBERS)}
             className="h-12 bg-roulette-black/50 border-roulette-black/50 text-white text-sm"
           >
             NOIR
           </BetCell>
           <BetCell
             type="impair"
-            numbers={[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]}
+            numbers={ODD_NUMBERS}
             className="h-12 bg-white/5 border-white/20 text-white/60 text-sm"
           >
             IMPAIR
           </BetCell>
           <BetCell
             type="passe"
-            numbers={[19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]}
+            numbers={PASSE_NUMBERS}
             className="h-12 bg-white/5 border-white/20 text-white/60 text-sm"
           >
             19-36

@@ -8,6 +8,7 @@ import { ActionPanel } from './ActionPanel';
 import { ResultOverlay } from './ResultOverlay';
 import { useToast } from '@/components/ui/ToastNotification';
 import { fadeIn, staggerContainer } from '@/config/animations.config';
+import { formatCurrency, formatCurrencyWithSign } from '@/utils/currency';
 
 /**
  * Composant BlackjackTable — table de blackjack complète
@@ -79,9 +80,9 @@ export function BlackjackTable() {
       // Toast de résultat
       const netProfit = engine.payout - engine.currentBet;
       if (netProfit > 0) {
-        toast.success(`${engine.outcome === 'blackjack' ? 'Blackjack! ' : ''}Gain: ${netProfit / 100} ZVC$`, 4000);
+        toast.success(`${engine.outcome === 'blackjack' ? 'Blackjack ! ' : ''}Gain ${formatCurrencyWithSign(netProfit)}`, 4000);
       } else if (netProfit < 0) {
-        toast.info(`Perte: ${Math.abs(netProfit) / 100} ZVC$`, 3000);
+        toast.info(`Perte ${formatCurrency(Math.abs(netProfit))}`, 3000);
       }
     }
   }, [engine.outcome, engine.status, engine.payout, engine.currentBet, toast]);

@@ -11,7 +11,14 @@
       "Bash(./node_modules/.bin/tsc --noEmit)",
       "Bash(npm list:*)",
       "Bash(curl -s http://localhost:5173)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(ipconfig)",
+      "Bash(findstr /i \"Address\")",
+      "Bash(findstr /v \"127.0.0.1\")",
+      "Bash(powershell:*)",
+      "mcp__ide__executeCode",
+      "Bash(python:*)",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }

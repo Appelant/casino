@@ -1,36 +1,30 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { CasinoLayout } from '@/components/layout';
 import { GameLobby } from '@/components/layout';
 import { RouletteTable } from '@/features/roulette';
 import { BlackjackTable } from '@/features/blackjack';
 import { ToastContainer } from '@/components/ui';
+import { StatsPanel } from '@/components/stats/StatsPanel';
+import { HistoryPanel } from '@/components/stats/HistoryPanel';
 
 /**
- * Page Stats — statistiques du joueur
+ * Routes wrappées dans AnimatePresence keyé sur location.
+ * Doit être un enfant de BrowserRouter pour accéder à useLocation().
  */
-function StatsPage() {
+function AnimatedRoutes() {
+  const location = useLocation();
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Statistiques</h1>
-      <div className="text-white/60">
-        <p>En cours de développement...</p>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Page History — historique des rounds
- */
-function HistoryPage() {
-  return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Historique</h1>
-      <div className="text-white/60">
-        <p>En cours de développement...</p>
-      </div>
-    </div>
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<GameLobby />} />
+        <Route path="/roulette" element={<RouletteTable />} />
+        <Route path="/blackjack" element={<BlackjackTable />} />
+        <Route path="/stats" element={<StatsPanel />} />
+        <Route path="/history" element={<HistoryPanel />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
   );
 }
 
@@ -40,29 +34,9 @@ function HistoryPage() {
 export function App() {
   return (
     <BrowserRouter>
-      <AnimatePresence mode="wait">
-        <CasinoLayout>
-          <Routes>
-            {/* Lobby */}
-            <Route path="/" element={<GameLobby />} />
-
-            {/* Roulette */}
-            <Route path="/roulette" element={<RouletteTable />} />
-
-            {/* Blackjack */}
-            <Route path="/blackjack" element={<BlackjackTable />} />
-
-            {/* Stats & History */}
-            <Route path="/stats" element={<StatsPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-
-            {/* Redirect inconnues vers lobby */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </CasinoLayout>
-      </AnimatePresence>
-
-      {/* Toast container global */}
+      <CasinoLayout>
+        <AnimatedRoutes />
+      </CasinoLayout>
       <ToastContainer />
     </BrowserRouter>
   );

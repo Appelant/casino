@@ -16,7 +16,7 @@ const INITIAL_STATE: UIState = {
  * Génère un ID unique pour les toasts
  */
 const generateToastId = (): string => {
-  return `toast_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  return `toast_${crypto.randomUUID()}`;
 };
 
 /**

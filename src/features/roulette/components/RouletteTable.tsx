@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useRouletteEngine } from '../hooks/useRouletteEngine';
 import type { BetType } from '@/types';
@@ -13,6 +13,7 @@ import { RouletteHistory } from './RouletteHistory';
 import { StatsBadge } from './StatsBadge';
 import { useToast } from '@/components/ui/ToastNotification';
 import { fadeIn } from '@/config/animations.config';
+import { formatCurrency, formatCurrencyWithSign } from '@/utils/currency';
 
 /**
  * Composant RouletteTable — table de roulette complète
@@ -52,9 +53,9 @@ export function RouletteTable() {
     if (engine.lastResult && engine.status === 'result') {
       const netProfit = engine.lastResult.totalWon - engine.lastResult.totalLost;
       if (netProfit > 0) {
-        toast.success(`Gain: ${netProfit / 100} ZVC$`, 4000);
+        toast.success(`Gain ${formatCurrencyWithSign(netProfit)}`, 4000);
       } else if (netProfit < 0) {
-        toast.info(`Perte: ${Math.abs(netProfit) / 100} ZVC$`, 3000);
+        toast.info(`Perte ${formatCurrency(Math.abs(netProfit))}`, 3000);
       }
     }
   }, [engine.lastResult, engine.status, toast]);
@@ -64,7 +65,7 @@ export function RouletteTable() {
     if (engine.status !== 'betting' && engine.status !== 'idle') return;
 
     const bet: import('@/types').RouletteBet = {
-      id: `bet_${Date.now()}_${crypto.randomUUID()}`,
+      id: `bet_${crypto.randomUUID()}`,
       type,
       numbers,
       amount: selectedChip,
@@ -94,26 +95,17 @@ export function RouletteTable() {
     }, 100);
   }, [engine]);
 
-  // Stats hot/cold numbers
-  const hotNumbers = history
-    .slice(0, 20)
-    .filter((n, i, arr) => arr.indexOf(n) === i)
-    .sort((a, b) => {
-      const countA = history.filter((n) => n === a).length;
-      const countB = history.filter((n) => n === b).length;
-      return countB - countA;
-    })
-    .slice(0, 3);
-
-  const coldNumbers = history
-    .slice(0, 20)
-    .filter((n, i, arr) => arr.indexOf(n) === i)
-    .sort((a, b) => {
-      const countA = history.filter((n) => n === a).length;
-      const countB = history.filter((n) => n === b).length;
-      return countA - countB;
-    })
-    .slice(0, 3);
+  // Stats hot/cold numbers — calculées en O(n) puis triées
+  const { hotNumbers, coldNumbers } = useMemo(() => {
+    const window = history.slice(0, 20);
+    const counts = new Map<number, number>();
+    for (const n of window) counts.set(n, (counts.get(n) ?? 0) + 1);
+    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    return {
+      hotNumbers: sorted.slice(0, 3).map(([n]) => n),
+      coldNumbers: sorted.slice(-3).map(([n]) => n).reverse(),
+    };
+  }, [history]);
 
   const isBettingPhase = engine.status === 'betting' || engine.status === 'idle';
 

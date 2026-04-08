@@ -60,6 +60,18 @@ export function GameLobby() {
         variants={staggerContainer}
         className="text-center mb-12"
       >
+        {/* Logo ZVC */}
+        <motion.div
+          variants={bounceIn}
+          className="flex justify-center mb-6"
+        >
+          <img
+            src="/logo.png"
+            alt="ZVC - ZéroVirguleChance"
+            className="w-48 h-48 md:w-64 md:h-64 object-contain drop-shadow-2xl"
+          />
+        </motion.div>
+
         <motion.h1 variants={bounceIn} className="text-4xl md:text-5xl font-bold mb-4">
           Bienvenue au <span className="text-neon-purple">Casino ZVC</span>
         </motion.h1>

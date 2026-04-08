@@ -19,7 +19,7 @@ export interface SidebarProps {
 export function Sidebar({}: SidebarProps) {
   const location = useLocation();
   const isSidebarOpen = useUIStore((state) => state.isSidebarOpen);
-  const closeSidebar = useUIStore(() => useUIStore.getState().toggleSidebar);
+  const closeSidebar = () => useUIStore.getState().toggleSidebar();
 
   const navItems = [
     {

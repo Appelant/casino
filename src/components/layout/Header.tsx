@@ -5,6 +5,9 @@ import { useUIStore } from '@/stores';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { slideDown } from '@/config/animations.config';
+import { useState } from 'react';
+import { UsernameModal } from '@/components/player/UsernameModal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 /**
  * Composant Header — barre de navigation supérieure
@@ -17,9 +20,12 @@ import { slideDown } from '@/config/animations.config';
  */
 export function Header() {
   const balance = usePlayerStore((state) => state.balance);
+  const username = usePlayerStore((state) => state.username);
   const soundEnabled = useUIStore((state) => state.soundEnabled);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const toggleSound = useUIStore((state) => state.toggleSound);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   return (
     <motion.header
@@ -51,17 +57,30 @@ export function Header() {
             className="flex items-center gap-2"
             whileHover={{ scale: 1.02 }}
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-neon-purple to-neon-cyan flex items-center justify-center">
-              <span className="text-white font-bold text-sm">ZVC</span>
-            </div>
+            <img
+              src="/logo.png"
+              alt="ZVC - ZéroVirguleChance"
+              className="h-10 w-10 object-contain"
+            />
             <span className="hidden sm:block text-lg font-bold text-white">
               ZéroVirguleChance
             </span>
           </motion.div>
         </div>
 
-        {/* Right: Balance + Sound + Reset */}
+        {/* Right: Username + Balance + Sound + Reset */}
         <div className="flex items-center gap-3">
+          {/* Username button */}
+          <NeonButton
+            variant="purple"
+            size="sm"
+            onClick={() => setShowUsernameModal(true)}
+            aria-label="Changer le pseudo"
+            className="hidden sm:flex"
+          >
+            <span className="text-sm">@{username}</span>
+          </NeonButton>
+
           {/* Balance */}
           <div className={clsx(
             'px-4 py-2 rounded-lg',
@@ -75,7 +94,7 @@ export function Header() {
           <NeonButton
             variant="cyan"
             size="sm"
-            onClick={() => usePlayerStore.getState().resetBalance()}
+            onClick={() => setShowResetConfirm(true)}
             aria-label="Réinitialiser le solde à 10 000 ZVC$"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -105,6 +124,23 @@ export function Header() {
           </NeonButton>
         </div>
       </div>
+
+      {/* Username Modal */}
+      <UsernameModal
+        isOpen={showUsernameModal}
+        onClose={() => setShowUsernameModal(false)}
+      />
+
+      {/* Reset confirmation */}
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={() => usePlayerStore.getState().resetBalance()}
+        title="Réinitialiser le solde ?"
+        message="Votre solde sera remis à 10 000 ZVC$. Cette action est irréversible."
+        confirmLabel="Réinitialiser"
+        variant="danger"
+      />
     </motion.header>
   );
 }
