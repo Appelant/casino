@@ -6,7 +6,6 @@
 import { create } from 'zustand';
 import type { GameResult } from '@/types';
 import { authApi, usersApi, type UserRecord as ApiUser } from '@/api/client';
-import { computeEloDelta, applyEloDelta } from '@/features/auth/utils/eloCalculator';
 
 // Adapter le type API vers le type local
 interface UserRecord {
@@ -166,10 +165,18 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     const user = get().currentUser;
     if (!user) return;
 
+    // Mise à jour optimiste immédiate (évite de repasser les rounds dans toUserRecord)
+    set((s) => ({
+      currentUser: s.currentUser ? { ...s.currentUser, balance } : null,
+    }));
+
     try {
-      const { user: updated } = await usersApi.update(user.id, { balance });
-      set({ currentUser: toUserRecord(updated, user.rounds) });
+      await usersApi.update(user.id, { balance });
     } catch (err) {
+      // Rollback si le serveur échoue
+      set((s) => ({
+        currentUser: s.currentUser ? { ...s.currentUser, balance: user.balance } : null,
+      }));
       console.error('Erreur setBalance:', err);
     }
   },
@@ -179,13 +186,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     if (!user) return;
 
     try {
-      const delta = computeEloDelta({ wagered, netProfit, isWin, isBlackjack });
-      const newElo = applyEloDelta(user.elo, delta);
-
-      // 1. Mettre à jour stats + balance + elo
+      // Mettre à jour stats + balance
       const { user: updated } = await usersApi.update(user.id, {
         balance: newBalance,
-        elo: newElo,
         totalGames: user.totalGames + 1,
         totalWins: user.totalWins + (isWin ? 1 : 0),
         totalLosses: user.totalLosses + (isWin ? 0 : 1),

@@ -14,15 +14,16 @@ export interface PlayerState {
  * Type complet du store joueur (état + actions)
  */
 export interface PlayerStore {
-  balance:     Currency;
-  username:    string;
-  avatar:      string;
-  placeBet:    (amount: Currency) => boolean;
-  receiveWin:  (amount: Currency) => void;
-  lose:        (amount: Currency) => void;
-  setUsername: (username: string) => void;
-  setAvatar:   (avatar: string) => void;
-  resetBalance: () => void;
+  balance:        Currency;
+  username:       string;
+  avatar:         string;
+  hasPendingBet:  boolean;
+  placeBet:       (amount: Currency) => boolean;
+  receiveWin:     (amount: Currency) => void;
+  lose:           (amount: Currency) => void;
+  setUsername:    (username: string) => void;
+  setAvatar:      (avatar: string) => void;
+  resetBalance:   () => void;
 }
 
 /**

@@ -11,19 +11,25 @@ export interface BettingChipProps {
 }
 
 const chipColors: Record<number, string> = {
-  100:   'bg-neon-purple/30 border-neon-purple text-neon-purple',
-  500:   'bg-neon-cyan/30 border-neon-cyan text-neon-cyan',
-  2500:  'bg-neon-gold/30 border-neon-gold text-neon-gold',
-  10000: 'bg-neon-red/30 border-neon-red text-neon-red',
-  50000: 'bg-neon-green/30 border-neon-green text-neon-green',
+  100:       'bg-neon-purple/30 border-neon-purple text-neon-purple',
+  500:       'bg-neon-cyan/30 border-neon-cyan text-neon-cyan',
+  2500:      'bg-neon-gold/30 border-neon-gold text-neon-gold',
+  10000:     'bg-neon-red/30 border-neon-red text-neon-red',
+  50000:     'bg-neon-green/30 border-neon-green text-neon-green',
+  100_000:   'bg-orange-500/30 border-orange-400 text-orange-300',
+  500_000:   'bg-white/20 border-white text-white',
+  1_000_000: 'bg-yellow-900/40 border-yellow-400 text-yellow-300',
 };
 
 const chipLabels: Record<number, string> = {
-  100:   '1',
-  500:   '5',
-  2500:  '25',
-  10000: '100',
-  50000: '500',
+  100:       '1',
+  500:       '5',
+  2500:      '25',
+  10000:     '100',
+  50000:     '500',
+  100_000:   '1K',
+  500_000:   '5K',
+  1_000_000: '10K',
 };
 
 /**
@@ -75,7 +81,7 @@ export interface ChipSelectorProps {
 }
 
 export function ChipSelector({ selectedValue, onSelect, disabled }: ChipSelectorProps) {
-  const chipValues = [100, 500, 2500, 10000, 50000];
+  const chipValues = [100, 500, 2500, 10000, 50000, 100_000, 500_000, 1_000_000];
 
   return (
     <motion.div

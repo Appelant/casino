@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useBlackjackEngine } from '../hooks/useBlackjackEngine';
 import { SideBetsTable } from './SideBetsTable';
+import { usePlayerStore } from '@/stores';
 import { DealerHand } from './DealerHand';
 import { PlayerHand, SplitHands } from './PlayerHand';
 import { ActionPanel } from './ActionPanel';
@@ -18,6 +19,7 @@ import { formatCurrency, formatCurrencyWithSign } from '@/utils/currency';
 export function BlackjackTable() {
   // Hook engine
   const engine = useBlackjackEngine();
+  const playerBalance = usePlayerStore((s) => s.balance);
   const toast = useToast();
 
   // State local
@@ -130,6 +132,7 @@ export function BlackjackTable() {
           <SideBetsTable
             onPlaceBets={handlePlaceBets}
             disabled={engine.status === 'bet'}
+            balance={playerBalance}
           />
         </div>
       )}

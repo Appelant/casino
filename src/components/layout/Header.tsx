@@ -9,6 +9,7 @@ import { NeonButton } from '@/components/ui/NeonButton';
 import { RankBadge } from '@/features/auth/components/RankBadge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { slideDown } from '@/config/animations.config';
+import { GAME_CONFIG } from '@/config/game.config';
 
 /**
  * Header — barre supérieure : logo, rank, solde, son, déconnexion.
@@ -18,14 +19,18 @@ import { slideDown } from '@/config/animations.config';
 export function Header() {
   const balance = usePlayerStore((state) => state.balance);
   const username = usePlayerStore((state) => state.username);
-  const elo = useAuthStore((s) => s.currentUser?.elo ?? 0);
+  const hasPendingBet = usePlayerStore((state) => state.hasPendingBet);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const logout = useAuthStore((s) => s.logout);
+  const setBalance = useAuthStore((s) => s.setBalance);
   const soundEnabled = useUIStore((state) => state.soundEnabled);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const toggleSound = useUIStore((state) => state.toggleSound);
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showReloadConfirm, setShowReloadConfirm] = useState(false);
+
+  const isBroke = balance < GAME_CONFIG.MIN_BET && !hasPendingBet;
 
   return (
     <motion.header
@@ -68,7 +73,7 @@ export function Header() {
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Rank badge */}
             <div className="hidden md:block">
-              <RankBadge elo={elo} size="sm" />
+              <RankBadge balance={balance} size="sm" />
             </div>
 
             {/* Username (lecture seule — définitif) */}
@@ -84,6 +89,18 @@ export function Header() {
             )}>
               <CurrencyDisplay amount={balance} size="md" />
             </div>
+
+            {/* Bouton recharge si fauché */}
+            {isBroke && (
+              <NeonButton
+                variant="gold"
+                size="sm"
+                onClick={() => setShowReloadConfirm(true)}
+                aria-label="Recharger le solde"
+              >
+                +10 000 ZVC$
+              </NeonButton>
+            )}
 
             {/* Sound */}
             <NeonButton
@@ -128,6 +145,16 @@ export function Header() {
         title="Se déconnecter ?"
         message="Votre progression est sauvegardée. Vous pourrez vous reconnecter à tout moment."
         confirmLabel="Déconnexion"
+        variant="warning"
+      />
+
+      <ConfirmDialog
+        isOpen={showReloadConfirm}
+        onClose={() => setShowReloadConfirm(false)}
+        onConfirm={() => setBalance(GAME_CONFIG.STARTING_BALANCE)}
+        title="Recharger le solde ?"
+        message="Votre solde sera remis à 10 000 ZVC$. Votre progression (rang, stats) reste intacte."
+        confirmLabel="Recharger"
         variant="warning"
       />
     </motion.header>

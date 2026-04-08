@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { RankBadge } from '@/features/auth/components/RankBadge';
@@ -7,6 +7,7 @@ import { leaderboardApi } from '@/api/client';
 import { useAuthStore } from '@/stores/auth/authStore';
 import { formatCurrency } from '@/utils/currency';
 import { fadeIn } from '@/config/animations.config';
+import { getAllRanks } from '@/features/auth/utils/rankSystem';
 
 interface LeaderboardPlayer {
   id: string;
@@ -29,6 +30,15 @@ export function Leaderboard() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showRanks, setShowRanks] = useState(false);
+
+  // Grouper tous les paliers par tier
+  const allRanks = getAllRanks();
+  const tiers = Array.from(new Set(allRanks.map((r) => r.tier)));
+  const ranksByTier = tiers.map((tier) => ({
+    tier,
+    ranks: allRanks.filter((r) => r.tier === tier),
+  }));
 
   // Fetch initial
   useEffect(() => {
@@ -38,7 +48,7 @@ export function Leaderboard() {
   // Refresh quand l'utilisateur courant change
   useEffect(() => {
     fetchLeaderboard();
-  }, [currentUser?.elo, currentUser?.totalGames]);
+  }, [currentUser?.balance, currentUser?.totalGames]);
 
   // Polling pour rafraîchir le classement toutes les 5s
   useEffect(() => {
@@ -51,7 +61,8 @@ export function Leaderboard() {
   async function fetchLeaderboard() {
     try {
       const { players: fetched } = await leaderboardApi.get(50);
-      setPlayers(fetched);
+      const sorted = [...fetched].sort((a, b) => b.balance - a.balance || b.total_won - a.total_won);
+      setPlayers(sorted);
       setIsLoading(false);
     } catch (err) {
       console.error('Erreur fetch leaderboard:', err);
@@ -70,9 +81,69 @@ export function Leaderboard() {
         <h1 className="text-4xl font-bold mb-2">
           <span className="text-neon-purple">Classement</span>
         </h1>
-        <p className="text-sm text-white/50 uppercase tracking-widest">
+        <p className="text-sm text-white/50 uppercase tracking-widest mb-4">
           Les meilleurs joueurs ZVC
         </p>
+        <button
+          onClick={() => setShowRanks((v) => !v)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 text-sm transition-all"
+        >
+          <span>🏅</span>
+          <span>{showRanks ? 'Masquer les rangs' : 'Voir les rangs'}</span>
+          <span className="text-xs">{showRanks ? '▲' : '▼'}</span>
+        </button>
+
+        <AnimatePresence>
+          {showRanks && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden mt-4"
+            >
+              <GlassCard className="p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {ranksByTier.map(({ tier, ranks }) => {
+                    const color = ranks[0]!.color;
+                    const icon = ranks[0]!.icon;
+                    return (
+                      <div
+                        key={tier}
+                        className="rounded-lg border overflow-hidden"
+                        style={{ borderColor: `${color}44`, backgroundColor: `${color}08` }}
+                      >
+                        {/* En-tête du tier */}
+                        <div
+                          className="flex items-center gap-1.5 px-3 py-2 border-b"
+                          style={{ borderColor: `${color}33`, backgroundColor: `${color}18` }}
+                        >
+                          <span className="text-lg">{icon}</span>
+                          <span className="text-xs font-bold uppercase tracking-wider" style={{ color }}>
+                            {tier}
+                          </span>
+                        </div>
+                        {/* Paliers */}
+                        <div className="divide-y" style={{ borderColor: `${color}22` }}>
+                          {ranks.map((rank) => (
+                            <div key={rank.label} className="flex items-center justify-between px-3 py-1.5">
+                              <span className="text-xs text-white/60">
+                                {rank.division !== null ? `${tier} ${rank.division}` : 'Radiant'}
+                              </span>
+                              <span className="text-[11px] font-mono" style={{ color: `${color}cc` }}>
+                                {formatCurrency(rank.minAmount)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </GlassCard>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <GlassCard className="p-4">
@@ -141,7 +212,7 @@ export function Leaderboard() {
                   </div>
 
                   {/* Rank badge */}
-                  <RankBadge elo={player.elo} size="sm" />
+                  <RankBadge balance={player.balance} size="sm" />
                 </motion.li>
               );
             })}

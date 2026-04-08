@@ -16,26 +16,37 @@ export const usePlayerStore = create<PlayerStore>(() => ({
   balance: 0,
   username: 'Invité',
   avatar: 'default',
+  hasPendingBet: false,
 
   placeBet: (amount: number) => {
     const user = useAuthStore.getState().currentUser;
     if (!user) return false;
     if (user.balance < amount) return false;
-    const newBalance = user.balance - amount;
-    useAuthStore.getState().setBalance(newBalance);
+    // Mise à jour locale instantanée — recordRound synce avec le serveur en fin de round
+    useAuthStore.setState((s) => ({
+      currentUser: s.currentUser ? { ...s.currentUser, balance: s.currentUser.balance - amount } : null,
+    }));
+    usePlayerStore.setState({ hasPendingBet: true });
     return true;
   },
 
   receiveWin: (amount: number) => {
     const user = useAuthStore.getState().currentUser;
     if (!user) return;
-    useAuthStore.getState().setBalance(user.balance + amount);
+    // Mise à jour locale instantanée — recordRound synce avec le serveur en fin de round
+    useAuthStore.setState((s) => ({
+      currentUser: s.currentUser ? { ...s.currentUser, balance: s.currentUser.balance + amount } : null,
+    }));
   },
 
   lose: (amount: number) => {
     const user = useAuthStore.getState().currentUser;
     if (!user) return;
-    useAuthStore.getState().setBalance(Math.max(0, user.balance - amount));
+    useAuthStore.setState((s) => ({
+      currentUser: s.currentUser
+        ? { ...s.currentUser, balance: Math.max(0, s.currentUser.balance - amount) }
+        : null,
+    }));
   },
 
   setUsername: (username: string) => {
@@ -65,16 +76,23 @@ export const usePlayerStore = create<PlayerStore>(() => ({
 // Sync : authStore.currentUser → playerStore
 // ============================================
 
+// Suit le totalGames vu en dernier pour détecter la fin d'un round
+let _lastSeenTotalGames = 0;
+
 const syncFromAuth = (): void => {
   const user = useAuthStore.getState().currentUser;
   if (user) {
+    const roundJustSettled = user.totalGames > _lastSeenTotalGames;
+    _lastSeenTotalGames = user.totalGames;
     usePlayerStore.setState({
       balance: user.balance,
       username: user.username,
       avatar: 'default',
+      ...(roundJustSettled ? { hasPendingBet: false } : {}),
     });
   } else {
-    usePlayerStore.setState({ balance: 0, username: 'Invité', avatar: 'default' });
+    _lastSeenTotalGames = 0;
+    usePlayerStore.setState({ balance: 0, username: 'Invité', avatar: 'default', hasPendingBet: false });
   }
 };
 

@@ -360,7 +360,7 @@ app.get('/api/leaderboard', (req, res) => {
     const players = db.prepare(`
       SELECT id, username, balance, elo, total_games, total_wins, total_losses, total_wagered, total_won, biggest_win
       FROM users
-      ORDER BY elo DESC, total_won DESC
+      ORDER BY balance DESC, total_won DESC
       LIMIT ?
     `).all(limit);
 

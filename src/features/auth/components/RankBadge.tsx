@@ -1,8 +1,10 @@
 import { clsx } from 'clsx';
-import { getRankFromElo, getRankProgress } from '../utils/rankSystem';
+import { getRankFromAmount, getRankProgress } from '../utils/rankSystem';
+import { formatCurrency } from '@/utils/currency';
 
 export interface RankBadgeProps {
-  elo: number;
+  /** Solde actuel en centimes — détermine le rang */
+  balance: number;
   size?: 'sm' | 'md' | 'lg';
   showProgress?: boolean;
   className?: string;
@@ -10,10 +12,11 @@ export interface RankBadgeProps {
 
 /**
  * RankBadge — pilier de rank Valorant-style avec icône, label et glow.
+ * Le rang est calculé d'après le solde actuel (balance).
  */
-export function RankBadge({ elo, size = 'md', showProgress = false, className }: RankBadgeProps) {
-  const rank = getRankFromElo(elo);
-  const progress = getRankProgress(elo);
+export function RankBadge({ balance, size = 'md', showProgress = false, className }: RankBadgeProps) {
+  const rank = getRankFromAmount(balance);
+  const progress = getRankProgress(balance);
 
   const sizes = {
     sm: { icon: 'text-lg', label: 'text-xs', padding: 'px-2 py-1', gap: 'gap-1.5' },
@@ -44,7 +47,7 @@ export function RankBadge({ elo, size = 'md', showProgress = false, className }:
         </span>
       </div>
 
-      {showProgress && rank.maxElo !== null && (
+      {showProgress && rank.maxAmount !== null && (
         <div className="mt-1 w-full h-1 rounded-full bg-white/10 overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
@@ -59,7 +62,7 @@ export function RankBadge({ elo, size = 'md', showProgress = false, className }:
 
       {showProgress && (
         <div className="mt-1 text-[10px] text-white/40 text-center font-mono">
-          {elo} ELO
+          {formatCurrency(balance)}
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useRouletteEngine } from '../hooks/useRouletteEngine';
 import type { BetType } from '@/types';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { usePlayerStore } from '@/stores';
 import { ChipSelector } from './BettingChip';
 import { BettingGrid } from './BettingGrid';
 import { BetDisplay } from './BetDisplay';
@@ -25,6 +26,7 @@ export function RouletteTable() {
   // Hooks
   const engine = useRouletteEngine();
   const toast = useToast();
+  const playerBalance = usePlayerStore((s) => s.balance);
 
   // State local
   const [selectedChip, setSelectedChip] = useState(100); // 1 ZVC$ par défaut
@@ -182,13 +184,23 @@ export function RouletteTable() {
               />
             </div>
 
-            {/* Chip Selector */}
-            <div className="mb-4">
+            {/* Chip Selector + All In */}
+            <div className="mb-4 space-y-2">
               <ChipSelector
                 selectedValue={selectedChip}
                 onSelect={setSelectedChip}
                 disabled={!isBettingPhase}
               />
+              {isBettingPhase && playerBalance > 0 && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => setSelectedChip(playerBalance)}
+                    className="px-4 py-1.5 rounded-lg bg-neon-red/20 border border-neon-red/50 text-neon-red text-xs font-bold uppercase tracking-wider hover:bg-neon-red/30 transition-all shadow-[0_0_10px_rgba(239,68,68,0.3)]"
+                  >
+                    🔴 All In — {formatCurrency(playerBalance)}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Current Bets Display */}

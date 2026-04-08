@@ -9,11 +9,11 @@ export const GAME_CONFIG = {
   /** Mise minimale (1 ZVC$ = 100 centimes) */
   MIN_BET: 1 * 100,
 
-  /** Mise maximale par round (5 000 ZVC$) */
-  MAX_BET: 5_000 * 100,
+  /** Pas de mise maximale — limité par le solde du joueur */
+  MAX_BET: Number.MAX_SAFE_INTEGER,
 
   /** Valeurs des jetons disponibles (en centimes) */
-  CHIP_VALUES: [100, 500, 2500, 10000, 50000] as const,
+  CHIP_VALUES: [100, 500, 2500, 10000, 50000, 100_000, 500_000, 1_000_000] as const,
 
   /** Nombre maximum de rounds dans l'historique */
   HISTORY_MAX_ROUNDS: 50,
@@ -64,13 +64,9 @@ export const GAME_CONFIG = {
 export const ROULETTE_LIMITS = {
   MIN_BET: GAME_CONFIG.MIN_BET,
   MAX_BET: GAME_CONFIG.MAX_BET,
-  /** Gain maximum par spin */
-  MAX_PAYOUT: 50_000 * 100,
+  MAX_PAYOUT: Number.MAX_SAFE_INTEGER,
 } as const;
 
-/**
- * Limites de mise spécifiques au blackjack
- */
 export const BLACKJACK_LIMITS = {
   MIN_BET: GAME_CONFIG.MIN_BET,
   MAX_BET: GAME_CONFIG.MAX_BET,

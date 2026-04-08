@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { clsx } from 'clsx';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency } from '@/utils/currency';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { NeonButton } from '@/components/ui/NeonButton';
+import { BettingChip } from '@/features/roulette/components/BettingChip';
 import { fadeIn } from '@/config/animations.config';
 
 export interface SideBetsTableProps {
@@ -11,202 +12,266 @@ export interface SideBetsTableProps {
   disabled?: boolean;
   minBet?: number;
   maxBet?: number;
+  balance?: number;
 }
 
-/**
- * Composant SideBetsTable — table de paris secondaires
- *
- * Side bets disponibles:
- * - Perfect Pairs: Paire parfaite sur les 2 premières cartes du joueur
- * - 21+3: Combinaison poker avec les 2 cartes joueur + carte visible du dealer
- */
+const CHIP_VALUES = [100, 500, 2500, 10000, 50000, 100_000, 500_000, 1_000_000] as const;
+
+interface BetSectionProps {
+  label: string;
+  icon: string;
+  amount: number;
+  color: 'gold' | 'purple' | 'cyan';
+  enabled?: boolean;
+  onToggle?: () => void;
+  onAddChip: (value: number) => void;
+  onClear: () => void;
+  disabled: boolean;
+  maxBet: number;
+  description?: string;
+}
+
+const colorMap = {
+  gold:   { border: 'border-neon-gold/50',   bg: 'bg-neon-gold/10',   text: 'text-neon-gold',   badge: 'bg-neon-gold/20 text-neon-gold',   toggle: 'bg-neon-gold' },
+  purple: { border: 'border-neon-purple/50', bg: 'bg-neon-purple/10', text: 'text-neon-purple', badge: 'bg-neon-purple/20 text-neon-purple', toggle: 'bg-neon-purple' },
+  cyan:   { border: 'border-neon-cyan/50',   bg: 'bg-neon-cyan/10',   text: 'text-neon-cyan',   badge: 'bg-neon-cyan/20 text-neon-cyan',   toggle: 'bg-neon-cyan' },
+};
+
+function BetSection({
+  label, icon, amount, color, enabled, onToggle, onAddChip, onClear, disabled, maxBet, description,
+}: BetSectionProps) {
+  const isSideBet = onToggle !== undefined;
+  const isActive = isSideBet ? enabled : true;
+  const c = colorMap[color];
+
+  return (
+    <div className={clsx(
+      'rounded-2xl border-2 transition-all duration-300',
+      isActive ? `${c.border} ${c.bg}` : 'border-white/10 bg-white/[0.03]',
+    )}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-3">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{icon}</span>
+          <div>
+            <div className="font-bold text-white text-sm">{label}</div>
+            {description && (
+              <div className="text-xs text-white/40 mt-0.5">{description}</div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Bet amount badge */}
+          <div className={clsx(
+            'px-3 py-1.5 rounded-xl text-sm font-bold font-mono transition-all',
+            isActive && amount > 0 ? c.badge : 'bg-white/5 text-white/30',
+          )}>
+            {isActive && amount > 0 ? formatCurrency(amount) : isSideBet ? '—' : '0 ZVC$'}
+          </div>
+
+          {/* Toggle for side bets */}
+          {isSideBet && (
+            <button
+              onClick={onToggle}
+              disabled={disabled}
+              className={clsx(
+                'relative w-11 h-6 rounded-full transition-all duration-300',
+                'disabled:opacity-40 disabled:cursor-not-allowed',
+                enabled ? c.toggle : 'bg-white/20',
+              )}
+              aria-label={enabled ? `Désactiver ${label}` : `Activer ${label}`}
+            >
+              <div className={clsx(
+                'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300',
+                enabled ? 'left-5' : 'left-0.5',
+              )} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Chips + clear — toujours visible pour mise principale, sinon selon enabled */}
+      <AnimatePresence>
+        {isActive && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-3">
+              {/* Chips */}
+              <div className="flex gap-2 flex-wrap">
+                {CHIP_VALUES.map((v) => (
+                  <BettingChip
+                    key={v}
+                    value={v}
+                    onClick={() => onAddChip(v)}
+                    disabled={disabled || amount + v > maxBet}
+                  />
+                ))}
+              </div>
+
+              {/* Clear */}
+              {amount > 0 && (
+                <button
+                  onClick={onClear}
+                  disabled={disabled}
+                  className="text-xs text-white/40 hover:text-white/70 transition-colors underline underline-offset-2 disabled:opacity-40"
+                >
+                  Effacer la mise
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export function SideBetsTable({
   onPlaceBets,
   disabled = false,
   minBet = 100,
-  maxBet = 500000,
+  maxBet = Number.MAX_SAFE_INTEGER,
+  balance = 0,
 }: SideBetsTableProps) {
-  const [mainBet, setMainBet] = useState(500);
+  const [mainBet, setMainBet] = useState(0);
   const [perfectPairsBet, setPerfectPairsBet] = useState(0);
   const [twentyOnePlusThreeBet, setTwentyOnePlusThreeBet] = useState(0);
+  const [ppEnabled, setPpEnabled] = useState(false);
+  const [p3Enabled, setP3Enabled] = useState(false);
 
   const totalBet = mainBet + perfectPairsBet + twentyOnePlusThreeBet;
+  const canConfirm = mainBet >= minBet && totalBet <= maxBet && !disabled;
 
-  const handleTogglePerfectPairs = () => {
-    setPerfectPairsBet((prev) => (prev === 0 ? minBet : 0));
+  const addChip = (setter: React.Dispatch<React.SetStateAction<number>>, current: number, value: number) => {
+    if (current + value <= maxBet) setter(current + value);
   };
 
-  const handleToggleTwentyOnePlusThree = () => {
-    setTwentyOnePlusThreeBet((prev) => (prev === 0 ? minBet : 0));
+  const handleTogglePP = () => {
+    setPpEnabled((v) => {
+      if (v) setPerfectPairsBet(0);
+      return !v;
+    });
+  };
+
+  const handleToggleP3 = () => {
+    setP3Enabled((v) => {
+      if (v) setTwentyOnePlusThreeBet(0);
+      return !v;
+    });
   };
 
   const handleConfirm = () => {
-    if (totalBet >= minBet && totalBet <= maxBet) {
+    if (canConfirm) {
       onPlaceBets(mainBet, perfectPairsBet, twentyOnePlusThreeBet);
     }
   };
 
-  const canConfirm = totalBet >= minBet && totalBet <= maxBet && !disabled;
-
   return (
-    <motion.div variants={fadeIn} initial="hidden" animate="visible">
-      <GlassCard glowColor="gold" className="p-6 max-w-2xl mx-auto">
-        <div className="flex flex-col gap-6">
-          {/* Header */}
-          <div className="text-center">
-            <h2 className="text-xl font-bold text-white mb-1">
-              Table de mises
-            </h2>
-            <p className="text-sm text-white/50">
-              Minimum: {formatCurrency(minBet)} — Maximum: {formatCurrency(maxBet)}
-            </p>
-          </div>
+    <motion.div variants={fadeIn} initial="hidden" animate="visible" className="w-full max-w-lg mx-auto">
+      <GlassCard glowColor="gold" className="p-5 space-y-4">
 
-          {/* Main bet */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-white/80 font-medium">Mise principale</span>
-              <div className={clsx(
-                'px-4 py-2 rounded-lg border-2 min-w-[120px] text-center',
-                mainBet >= minBet
-                  ? 'border-neon-gold/50 bg-neon-gold/10'
-                  : 'border-white/10 bg-white/5'
-              )}>
-                <span className={clsx(
-                  'text-lg font-bold font-mono',
-                  mainBet >= minBet ? 'text-neon-gold' : 'text-white/60'
-                )}>
-                  {formatCurrency(mainBet)}
-                </span>
-              </div>
-            </div>
-
-            {/* Chip selector for main bet */}
-            <div className="flex gap-2 justify-center flex-wrap">
-              {[100, 500, 2500, 10000].map((value) => (
-                <button
-                  key={value}
-                  onClick={() => setMainBet(value)}
-                  disabled={disabled}
-                  className={clsx(
-                    'px-4 py-2 rounded-full border-2 font-bold text-sm transition-all',
-                    'hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed',
-                    mainBet === value
-                      ? 'bg-neon-gold/30 border-neon-gold text-neon-gold shadow-lg'
-                      : 'bg-white/5 border-white/20 text-white/70 hover:border-white/40'
-                  )}
-                >
-                  {formatCurrency(value)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-white/10" />
-
-          {/* Side Bets */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-white/60 uppercase tracking-wider">
-              Paris secondaires
-            </h3>
-
-            {/* Perfect Pairs */}
-            <div className={clsx(
-              'p-4 rounded-xl border-2 transition-all cursor-pointer',
-              perfectPairsBet > 0
-                ? 'border-purple-400/50 bg-purple-500/10'
-                : 'border-white/10 bg-white/5 hover:border-white/20'
-            )}
-            onClick={handleTogglePerfectPairs}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={clsx(
-                    'w-10 h-10 rounded-full flex items-center justify-center',
-                    perfectPairsBet > 0 ? 'bg-purple-500/30' : 'bg-white/10'
-                  )}>
-                    <span className="text-lg">🎴</span>
-                  </div>
-                  <div>
-                    <div className="font-bold text-white">Perfect Pairs</div>
-                    <div className="text-xs text-white/50">
-                      Paire sur vos 2 cartes (5:1 à 30:1)
-                    </div>
-                  </div>
-                </div>
-                <div className={clsx(
-                  'px-3 py-1.5 rounded-lg text-sm font-bold font-mono',
-                  perfectPairsBet > 0
-                    ? 'bg-purple-500/30 text-purple-300'
-                    : 'bg-white/5 text-white/40'
-                )}>
-                  {perfectPairsBet > 0 ? formatCurrency(perfectPairsBet) : 'Pas misé'}
-                </div>
-              </div>
-            </div>
-
-            {/* 21+3 */}
-            <div className={clsx(
-              'p-4 rounded-xl border-2 transition-all cursor-pointer',
-              twentyOnePlusThreeBet > 0
-                ? 'border-cyan-400/50 bg-cyan-500/10'
-                : 'border-white/10 bg-white/5 hover:border-white/20'
-            )}
-            onClick={handleToggleTwentyOnePlusThree}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={clsx(
-                    'w-10 h-10 rounded-full flex items-center justify-center',
-                    twentyOnePlusThreeBet > 0 ? 'bg-cyan-500/30' : 'bg-white/10'
-                  )}>
-                    <span className="text-lg">🃏</span>
-                  </div>
-                  <div>
-                    <div className="font-bold text-white">21+3</div>
-                    <div className="text-xs text-white/50">
-                      Vos 2 cartes + carte du dealer (5:1 à 100:1)
-                    </div>
-                  </div>
-                </div>
-                <div className={clsx(
-                  'px-3 py-1.5 rounded-lg text-sm font-bold font-mono',
-                  twentyOnePlusThreeBet > 0
-                    ? 'bg-cyan-500/30 text-cyan-300'
-                    : 'bg-white/5 text-white/40'
-                )}>
-                  {twentyOnePlusThreeBet > 0 ? formatCurrency(twentyOnePlusThreeBet) : 'Pas misé'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Total and Confirm */}
-          <div className="space-y-3 pt-4 border-t border-white/10">
-            <div className="flex items-center justify-between">
-              <span className="text-white/60">Total des mises</span>
-              <span className={clsx(
-                'text-2xl font-bold font-mono',
-                canConfirm ? 'text-neon-gold' : 'text-white/40'
-              )}>
-                {formatCurrency(totalBet)}
-              </span>
-            </div>
-
-            <NeonButton
-              variant="gold"
-              size="lg"
-              onClick={handleConfirm}
-              disabled={!canConfirm}
-              className="w-full"
-            >
-              {canConfirm
-                ? `Distribuer (${formatCurrency(totalBet)})`
-                : `Minimum ${formatCurrency(minBet)}`}
-            </NeonButton>
-          </div>
+        {/* Title */}
+        <div className="text-center pb-1">
+          <h2 className="text-lg font-bold text-white tracking-wide">Table de mises</h2>
+          <p className="text-xs text-white/40 mt-0.5">
+            Min {formatCurrency(minBet)} · Max {formatCurrency(maxBet)}
+          </p>
         </div>
+
+        {/* Mise principale */}
+        <BetSection
+          label="Mise principale"
+          icon="🎰"
+          amount={mainBet}
+          color="gold"
+          onAddChip={(v) => addChip(setMainBet, mainBet, v)}
+          onClear={() => setMainBet(0)}
+          disabled={disabled}
+          maxBet={maxBet}
+        />
+
+        {/* All In */}
+        {!disabled && balance > 0 && (
+          <div className="flex justify-center -mt-1">
+            <button
+              onClick={() => setMainBet(balance)}
+              className="px-4 py-1.5 rounded-lg bg-neon-red/20 border border-neon-red/50 text-neon-red text-xs font-bold uppercase tracking-wider hover:bg-neon-red/30 transition-all shadow-[0_0_10px_rgba(239,68,68,0.3)]"
+            >
+              🔴 All In — {formatCurrency(balance)}
+            </button>
+          </div>
+        )}
+
+        {/* Séparateur paris secondaires */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-xs text-white/30 uppercase tracking-widest">Paris secondaires</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
+
+        {/* Perfect Pairs */}
+        <BetSection
+          label="Perfect Pairs"
+          icon="🎴"
+          description="Paire sur vos 2 cartes · 5:1 à 30:1"
+          amount={perfectPairsBet}
+          color="purple"
+          enabled={ppEnabled}
+          onToggle={handleTogglePP}
+          onAddChip={(v) => addChip(setPerfectPairsBet, perfectPairsBet, v)}
+          onClear={() => setPerfectPairsBet(0)}
+          disabled={disabled}
+          maxBet={maxBet}
+        />
+
+        {/* 21+3 */}
+        <BetSection
+          label="21+3"
+          icon="🃏"
+          description="Vos 2 cartes + dealer · 5:1 à 100:1"
+          amount={twentyOnePlusThreeBet}
+          color="cyan"
+          enabled={p3Enabled}
+          onToggle={handleToggleP3}
+          onAddChip={(v) => addChip(setTwentyOnePlusThreeBet, twentyOnePlusThreeBet, v)}
+          onClear={() => setTwentyOnePlusThreeBet(0)}
+          disabled={disabled}
+          maxBet={maxBet}
+        />
+
+        {/* Total + Deal */}
+        <div className="pt-2 space-y-3 border-t border-white/10">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-sm text-white/50">Total</span>
+            <span className={clsx(
+              'text-xl font-bold font-mono transition-colors',
+              canConfirm ? 'text-neon-gold' : totalBet === 0 ? 'text-white/20' : 'text-white/60',
+            )}>
+              {formatCurrency(totalBet)}
+            </span>
+          </div>
+
+          <NeonButton
+            variant="gold"
+            size="lg"
+            onClick={handleConfirm}
+            disabled={!canConfirm}
+            className="w-full"
+          >
+            {mainBet === 0
+              ? 'Placez une mise principale'
+              : mainBet < minBet
+              ? `Minimum ${formatCurrency(minBet)}`
+              : `Distribuer · ${formatCurrency(totalBet)}`}
+          </NeonButton>
+        </div>
+
       </GlassCard>
     </motion.div>
   );
