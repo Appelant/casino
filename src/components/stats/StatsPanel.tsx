@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { usePlayerStore } from '@/stores/player/playerStore';
-import { useHistoryStore } from '@/stores/history/historyStore';
+import { useAuthStore } from '@/stores/auth/authStore';
 import { calculateUserStats, type UserStats } from '@/stores/stats/userStatsStore';
 import { formatCurrency } from '@/utils/currency';
 import { fadeIn, staggerContainer } from '@/config/animations.config';
@@ -27,8 +27,8 @@ export interface StatsPanelProps {
 export function StatsPanel({ onClose }: StatsPanelProps) {
   const currentUsername = usePlayerStore((s) => s.username);
 
-  // S'abonner à l'historique complet
-  const rounds = useHistoryStore((s) => s.rounds);
+  // S'abonner à l'historique de l'utilisateur courant
+  const rounds = useAuthStore((s) => s.currentUser?.rounds ?? []);
 
   // État local pour les stats (recalculé à chaque changement de rounds)
   const [stats, setStats] = useState<UserStats>(() => calculateUserStats(rounds));
@@ -65,6 +65,15 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
 
   // Derniers rounds
   const recentRounds = rounds.slice(0, 10);
+
+  // Meilleure victoire (round avec le plus gros netProfit positif)
+  const bestWin = useMemo(() => {
+    return rounds.reduce<typeof rounds[number] | null>((best, r) => {
+      if (r.netProfit <= 0) return best;
+      if (!best || r.netProfit > best.netProfit) return r;
+      return best;
+    }, null);
+  }, [rounds]);
 
   // Streak status
   const streakStatus = stats.currentStreak >= 3 ? 'hot' : stats.currentStreak <= -3 ? 'cold' : 'neutral';
@@ -146,6 +155,55 @@ export function StatsPanel({ onClose }: StatsPanelProps) {
           color={streakStatus === 'hot' ? 'green' : streakStatus === 'cold' ? 'blue' : 'gray'}
         />
       </motion.div>
+
+      {/* Meilleure victoire */}
+      <GlassCard glowColor="gold" className="p-6 mb-6 bg-gradient-to-br from-neon-gold/10 to-transparent">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-3xl">🏆</span>
+          <div>
+            <h3 className="text-lg font-bold text-white">Meilleure victoire</h3>
+            <p className="text-xs text-white/40 uppercase tracking-wider">
+              Le plus gros gain de tous les temps
+            </p>
+          </div>
+        </div>
+
+        {bestWin ? (
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="text-5xl">
+                {bestWin.gameId === 'roulette' ? '🎡' : '🃏'}
+              </div>
+              <div>
+                <div className="text-sm text-white/50 uppercase tracking-wider">
+                  {bestWin.gameId === 'roulette' ? 'Roulette' : 'Blackjack'}
+                </div>
+                <div className="text-xs text-white/40 mt-1">
+                  {new Date(bestWin.timestamp).toLocaleString('fr-FR')}
+                </div>
+                <div className="text-xs text-white/40 mt-0.5">
+                  Mise : {formatCurrency(bestWin.wagered)}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-white/40 uppercase tracking-wider mb-1">
+                Gain net
+              </div>
+              <div
+                className="text-4xl md:text-5xl font-bold font-mono text-neon-gold"
+                style={{ textShadow: '0 0 24px rgba(245, 158, 11, 0.6)' }}
+              >
+                +{formatCurrency(bestWin.netProfit)}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-center text-white/40 py-6">
+            Aucune victoire enregistrée pour l'instant. À toi de jouer !
+          </p>
+        )}
+      </GlassCard>
 
       {/* Stats par jeu */}
       <div className="grid md:grid-cols-2 gap-6 mb-6">

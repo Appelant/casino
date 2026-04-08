@@ -9,6 +9,8 @@ import { useReducer, useCallback, useRef } from 'react';
 import type { Card, Hand } from '@/types';
 import { usePlayerStore } from '@/stores';
 import { useHistoryStore } from '@/stores';
+import { useAuthStore } from '@/stores/auth/authStore';
+import { uuid } from '@/utils/rng/uuid';
 import { createHand, calculateHand, compareHands } from '../utils/handCalculator';
 import { simulateDealerTurn } from '../utils/dealerStrategy';
 import { calculatePayout } from '@/utils/payouts/blackjackPayout';
@@ -516,7 +518,7 @@ export function useBlackjackEngine() {
       // Enregistrer chaque main dans l'historique
       for (const result of results) {
         const round: import('@/types').GameResult = {
-          id: `bj_${crypto.randomUUID()}`,
+          id: `bj_${uuid()}`,
           gameId: 'blackjack' as const,
           timestamp: Date.now(),
           wagered: state.currentBet,
@@ -616,6 +618,18 @@ export function useBlackjackEngine() {
         };
 
         addRound(round);
+
+        // ELO + stats + historique utilisateur
+        const currentBalance = useAuthStore.getState().currentUser?.balance ?? 0;
+        useAuthStore.getState().recordRound({
+          wagered: totalWagered,
+          won: totalWon,
+          netProfit: totalWon - totalWagered,
+          isWin: totalWon > totalWagered,
+          isBlackjack: playerHand.isBlackjack,
+          newBalance: currentBalance,
+          round,
+        });
       }
     },
     [state.currentBet, state.perfectPairsBet, state.twentyOnePlusThreeBet, state.playerHands, playerStore, addRound]

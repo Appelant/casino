@@ -14,6 +14,7 @@ import { StatsBadge } from './StatsBadge';
 import { useToast } from '@/components/ui/ToastNotification';
 import { fadeIn } from '@/config/animations.config';
 import { formatCurrency, formatCurrencyWithSign } from '@/utils/currency';
+import { uuid } from '@/utils/rng/uuid';
 
 /**
  * Composant RouletteTable — table de roulette complète
@@ -29,6 +30,7 @@ export function RouletteTable() {
   const [selectedChip, setSelectedChip] = useState(100); // 1 ZVC$ par défaut
   const [history, setHistory] = useState<number[]>([]);
   const [showResult, setShowResult] = useState(false);
+  const [lastBets, setLastBets] = useState<{ type: BetType; numbers: number[]; amount: number }[]>([]);
 
   // Démarre la phase de mises au montage
   useEffect(() => {
@@ -65,7 +67,7 @@ export function RouletteTable() {
     if (engine.status !== 'betting' && engine.status !== 'idle') return;
 
     const bet: import('@/types').RouletteBet = {
-      id: `bet_${crypto.randomUUID()}`,
+      id: `bet_${uuid()}`,
       type,
       numbers,
       amount: selectedChip,
@@ -83,8 +85,26 @@ export function RouletteTable() {
       toast.warning('Placez une mise d\'abord', 2000);
       return;
     }
+    setLastBets(currentBets.map((b) => ({ type: b.type, numbers: [...b.numbers], amount: b.amount })));
     engine.spin();
-  }, [hasBets, engine]);
+  }, [hasBets, engine, currentBets]);
+
+  // Rejouer la dernière mise
+  const handleRebet = useCallback(() => {
+    if (lastBets.length === 0) return;
+    let placed = 0;
+    for (const b of lastBets) {
+      const ok = engine.placeBet({
+        id: `bet_${uuid()}`,
+        type: b.type,
+        numbers: [...b.numbers],
+        amount: b.amount,
+      });
+      if (!ok) break;
+      placed++;
+    }
+    if (placed === 0) toast.warning('Solde insuffisant', 2000);
+  }, [lastBets, engine, toast]);
 
   // Réinitialise après résultat
   const handleReset = useCallback(() => {
@@ -182,6 +202,19 @@ export function RouletteTable() {
               />
             </div>
           </GlassCard>
+
+          {/* Rebet Button */}
+          {isBettingPhase && lastBets.length > 0 && !hasBets && (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={handleRebet}
+                className="px-4 py-2 rounded-lg bg-neon-purple/15 border border-neon-purple/40 text-neon-purple text-sm font-bold uppercase tracking-wider hover:bg-neon-purple/25 transition-all shadow-[0_0_12px_rgba(139,92,246,0.3)]"
+              >
+                ↻ Rejouer la mise ({formatCurrency(lastBets.reduce((s, b) => s + b.amount, 0))})
+              </button>
+            </div>
+          )}
 
           {/* Spin Button */}
           <div className="flex justify-center">

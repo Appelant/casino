@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { useHistoryStore } from '@/stores';
+import { useAuthStore } from '@/stores/auth/authStore';
 import { formatCurrency } from '@/utils/currency';
 import { fadeIn } from '@/config/animations.config';
 
@@ -15,8 +15,8 @@ type GameFilter = 'all' | 'roulette' | 'blackjack';
  * avec filtre par jeu et action effacer.
  */
 export function HistoryPanel() {
-  const rounds = useHistoryStore((s) => s.rounds);
-  const clearHistory = useHistoryStore((s) => s.clearHistory);
+  const rounds = useAuthStore((s) => s.currentUser?.rounds ?? []);
+  const clearHistory = useAuthStore((s) => s.clearHistory);
 
   const [filter, setFilter] = useState<GameFilter>('all');
   const [showClearConfirm, setShowClearConfirm] = useState(false);

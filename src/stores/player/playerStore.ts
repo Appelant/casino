@@ -1,88 +1,83 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { PlayerStore } from '@/types';
-import { STORAGE_KEYS } from '@/utils/storage/storageKeys';
-import { GAME_CONFIG } from '@/config/game.config';
-
 /**
- * État initial du joueur
+ * playerStore — vue minimale du joueur connecté.
+ *
+ * Source de vérité = authStore.currentUser (synchronisé en DB).
+ * Ce store expose une API stable (placeBet/receiveWin/balance/username)
+ * pour que les engines de jeu n'aient pas à connaître le système d'auth.
  */
-const INITIAL_STATE = {
-  balance: GAME_CONFIG.STARTING_BALANCE,
-  username: 'Joueur',
+
+import { create } from 'zustand';
+import type { PlayerStore } from '@/types';
+import { useAuthStore } from '@/stores/auth/authStore';
+import { usersRepo } from '@/db/users.repo';
+
+export const usePlayerStore = create<PlayerStore>(() => ({
+  // Ces valeurs sont des stubs — elles sont sourced via useAuthStore via subscribe.
+  balance: 0,
+  username: 'Invité',
   avatar: 'default',
+
+  placeBet: (amount: number) => {
+    const user = useAuthStore.getState().currentUser;
+    if (!user) return false;
+    if (user.balance < amount) return false;
+    const newBalance = user.balance - amount;
+    useAuthStore.getState().setBalance(newBalance);
+    return true;
+  },
+
+  receiveWin: (amount: number) => {
+    const user = useAuthStore.getState().currentUser;
+    if (!user) return;
+    useAuthStore.getState().setBalance(user.balance + amount);
+  },
+
+  lose: (amount: number) => {
+    const user = useAuthStore.getState().currentUser;
+    if (!user) return;
+    useAuthStore.getState().setBalance(Math.max(0, user.balance - amount));
+  },
+
+  setUsername: (username: string) => {
+    const user = useAuthStore.getState().currentUser;
+    if (!user) return;
+    const updated = usersRepo.update(user.id, { username });
+    if (updated) {
+      // refresh authStore
+      useAuthStore.setState({ currentUser: updated });
+    }
+  },
+
+  setAvatar: (_avatar: string) => {
+    // Avatars non implémentés en DB — no-op pour compat.
+  },
+
+  /**
+   * @deprecated Le reset est désactivé : la progression est permanente.
+   * Conservé pour compat avec le type PlayerStore.
+   */
+  resetBalance: () => {
+    // Intentionnellement vide — la progression ELO/argent est permanente.
+  },
+}));
+
+// ============================================
+// Sync : authStore.currentUser → playerStore
+// ============================================
+
+const syncFromAuth = (): void => {
+  const user = useAuthStore.getState().currentUser;
+  if (user) {
+    usePlayerStore.setState({
+      balance: user.balance,
+      username: user.username,
+      avatar: 'default',
+    });
+  } else {
+    usePlayerStore.setState({ balance: 0, username: 'Invité', avatar: 'default' });
+  }
 };
 
-/**
- * Store Zustand pour la gestion du joueur
- *
- * Features:
- * - Persist LocalStorage via middleware
- * - placeBet: déduit le montant du solde (retourne false si solde insuffisant)
- * - receiveWin: ajoute un montant au solde
- * - lose: déduit un montant (pour affichage)
- * - setUsername/setAvatar: met à jour le profil
- * - resetBalance: réinitialise à 10 000 ZVC$
- */
-export const usePlayerStore = create<PlayerStore>()(
-  persist(
-    (set, get) => ({
-      ...INITIAL_STATE,
-
-      /**
-       * Place une mise. Retourne false si solde insuffisant.
-       */
-      placeBet: (amount: number) => {
-        const currentBalance = get().balance;
-        if (currentBalance < amount) {
-          return false;
-        }
-        set((state) => ({ balance: state.balance - amount }));
-        return true;
-      },
-
-      /**
-       * Reçoit un gain (après un win).
-       */
-      receiveWin: (amount: number) => {
-        set((state) => ({ balance: state.balance + amount }));
-      },
-
-      /**
-       * Perd un montant (pour affichage/trace).
-       */
-      lose: (amount: number) => {
-        set((state) => ({ balance: Math.max(0, state.balance - amount) }));
-      },
-
-      /**
-       * Met à jour le nom d'utilisateur.
-       */
-      setUsername: (username: string) => {
-        set({ username });
-      },
-
-      /**
-       * Met à jour l'avatar.
-       */
-      setAvatar: (avatar: string) => {
-        set({ avatar });
-      },
-
-      /**
-       * Réinitialise le solde à 10 000 ZVC$.
-       */
-      resetBalance: () => {
-        set({ balance: GAME_CONFIG.STARTING_BALANCE });
-      },
-    }),
-    {
-      name: STORAGE_KEYS.PLAYER,
-      partialize: (state) => ({
-        balance: state.balance,
-        username: state.username,
-        avatar: state.avatar,
-      }),
-    }
-  )
-);
+// Sync initial + à chaque changement de currentUser
+syncFromAuth();
+useAuthStore.subscribe(syncFromAuth);

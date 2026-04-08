@@ -11,6 +11,7 @@ import { secureRandomInt } from '../../../utils/rng/rng';
 import { resolveBets } from '../utils/betResolver';
 import { usePlayerStore } from '@/stores';
 import { useHistoryStore } from '@/stores';
+import { useAuthStore } from '@/stores/auth/authStore';
 import { ROULETTE_PAYOUTS } from '../utils/rouletteConstants';
 
 // ============================================
@@ -210,6 +211,17 @@ export function useRouletteEngine() {
     if (result.totalWon > 0) {
       playerReceiveWin(result.totalWon);
     }
+
+    // Enregistrer le round pour ELO + stats + historique utilisateur
+    const currentBalance = useAuthStore.getState().currentUser?.balance ?? 0;
+    useAuthStore.getState().recordRound({
+      wagered: result.totalLost,
+      won: result.totalWon,
+      netProfit: result.totalWon - result.totalLost,
+      isWin: result.totalWon > result.totalLost,
+      newBalance: currentBalance,
+      round,
+    });
 
     isProcessing.current = false;
   }, [state.status, state.currentBets, state.winningNumber, addRound, playerReceiveWin]);

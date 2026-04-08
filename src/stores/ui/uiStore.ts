@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { UIState, UIStore, Toast } from '@/types';
+import { uuid } from '@/utils/rng/uuid';
 
 /**
  * État initial de l'UI
@@ -16,7 +17,7 @@ const INITIAL_STATE: UIState = {
  * Génère un ID unique pour les toasts
  */
 const generateToastId = (): string => {
-  return `toast_${crypto.randomUUID()}`;
+  return `toast_${uuid()}`;
 };
 
 /**

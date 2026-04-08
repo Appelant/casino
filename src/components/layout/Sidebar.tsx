@@ -50,6 +50,15 @@ export function Sidebar({}: SidebarProps) {
       ),
     },
     {
+      label: 'Classement',
+      href: '/leaderboard',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v18h14V3H5zm4 14H7v-2h2v2zm0-4H7v-2h2v2zm0-4H7V7h2v2zm8 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z" />
+        </svg>
+      ),
+    },
+    {
       label: 'Statistiques',
       href: '/stats',
       icon: (

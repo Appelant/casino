@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { CasinoLayout } from '@/components/layout';
 import { GameLobby } from '@/components/layout';
@@ -7,11 +8,10 @@ import { BlackjackTable } from '@/features/blackjack';
 import { ToastContainer } from '@/components/ui';
 import { StatsPanel } from '@/components/stats/StatsPanel';
 import { HistoryPanel } from '@/components/stats/HistoryPanel';
+import { Leaderboard } from '@/components/stats/Leaderboard';
+import { AuthGate } from '@/features/auth/components/AuthGate';
+import { initDatabase } from '@/db/database';
 
-/**
- * Routes wrappées dans AnimatePresence keyé sur location.
- * Doit être un enfant de BrowserRouter pour accéder à useLocation().
- */
 function AnimatedRoutes() {
   const location = useLocation();
   return (
@@ -22,22 +22,26 @@ function AnimatedRoutes() {
         <Route path="/blackjack" element={<BlackjackTable />} />
         <Route path="/stats" element={<StatsPanel />} />
         <Route path="/history" element={<HistoryPanel />} />
+        <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
   );
 }
 
-/**
- * Composant principal App — routing et layout
- */
 export function App() {
+  useEffect(() => {
+    initDatabase();
+  }, []);
+
   return (
-    <BrowserRouter>
-      <CasinoLayout>
-        <AnimatedRoutes />
-      </CasinoLayout>
+    <HashRouter>
+      <AuthGate>
+        <CasinoLayout>
+          <AnimatedRoutes />
+        </CasinoLayout>
+      </AuthGate>
       <ToastContainer />
-    </BrowserRouter>
+    </HashRouter>
   );
 }
