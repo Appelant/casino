@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { useUIStore } from '@/stores';
 import { fadeIn } from '@/config/animations.config';
+import { useCasinoMusic } from '@/hooks/useCasinoMusic';
 
 export interface CasinoLayoutProps {
   children: ReactNode;
@@ -22,6 +23,9 @@ export interface CasinoLayoutProps {
  */
 export function CasinoLayout({ children, activeGame }: CasinoLayoutProps) {
   const isSidebarOpen = useUIStore((state) => state.isSidebarOpen);
+
+  // Musique de fond en boucle — respecte le toggle son du Header
+  useCasinoMusic();
 
   return (
     <div className="min-h-screen bg-casino-dark flex flex-col">

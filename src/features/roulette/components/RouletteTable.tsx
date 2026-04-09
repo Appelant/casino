@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useRouletteEngine } from '../hooks/useRouletteEngine';
 import type { BetType } from '@/types';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { usePlayerStore } from '@/stores';
+import { usePlayerStore, useUIStore } from '@/stores';
 import { ChipSelector } from './BettingChip';
 import { BettingGrid } from './BettingGrid';
 import { BetDisplay } from './BetDisplay';
@@ -27,6 +27,25 @@ export function RouletteTable() {
   const engine = useRouletteEngine();
   const toast = useToast();
   const playerBalance = usePlayerStore((s) => s.balance);
+  const soundEnabled = useUIStore((s) => s.soundEnabled);
+
+  // Son du spin — initialisé une fois, joué à chaque spin
+  const spinAudioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    const audio = new Audio('/roulette-spin.mp3');
+    audio.volume = 0.7;
+    spinAudioRef.current = audio;
+    return () => { audio.src = ''; };
+  }, []);
+
+  // Jouer le son dès que le statut passe à 'spinning'
+  useEffect(() => {
+    if (engine.status !== 'spinning') return;
+    const audio = spinAudioRef.current;
+    if (!audio || !soundEnabled) return;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  }, [engine.status, soundEnabled]);
 
   // State local
   const [selectedChip, setSelectedChip] = useState(100); // 1 ZVC$ par défaut
