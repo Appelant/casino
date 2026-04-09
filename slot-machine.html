@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lucky Reels — Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d0d14;
+      --surf:    #15151f;
+      --panel:   #1b1b28;
+      --border:  #27273a;
+      --gold:    #f59e0b;
+      --gold-lt: #fcd34d;
+      --purple:  #8b5cf6;
+      --green:   #10b981;
+      --red:     #ef4444;
+      --muted:   #55607a;
+      --text:    #dde3ef;
+      --r:       12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 16px 60px;
+      gap: 16px;
+    }
+
+    /* ── demo banner ─────────────────────────────────────────────── */
+    .banner {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #fca5a5;
+      background: rgba(239,68,68,.08);
+      border: 1px solid rgba(239,68,68,.2);
+      padding: 5px 20px;
+      border-radius: 999px;
+    }
+
+    /* ── machine card ────────────────────────────────────────────── */
+    .machine {
+      width: 100%;
+      max-width: 450px;
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── title ───────────────────────────────────────────────────── */
+    .title { text-align: center; }
+    .title h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      color: var(--gold-lt);
+      text-shadow: 0 0 20px rgba(245,158,11,.3);
+    }
+    .title p { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* ── balance ─────────────────────────────────────────────────── */
+    .balance-bar {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 11px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .balance-bar label {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    #balance {
+      font-size: 22px; font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--gold-lt);
+      transition: color .25s;
+    }
+    #balance.flash-win  { color: var(--green); }
+    #balance.flash-lose { color: var(--red);   }
+
+    /* ── reels viewport ──────────────────────────────────────────── */
+    .reels-wrap {
+      position: relative;
+      background: #08080e;
+      border: 2px solid var(--border);
+      border-radius: var(--r);
+      padding: 6px;
+      display: flex;
+      gap: 6px;
+      overflow: hidden;
+    }
+    /* fade top/bottom */
+    .reels-wrap::before, .reels-wrap::after {
+      content: '';
+      position: absolute; left: 0; right: 0;
+      height: 52px; z-index: 2; pointer-events: none;
+    }
+    .reels-wrap::before { top: 0;    background: linear-gradient(to bottom, #08080e 20%, transparent); }
+    .reels-wrap::after  { bottom: 0; background: linear-gradient(to top,    #08080e 20%, transparent); }
+
+    /* win-line */
+    #win-line {
+      position: absolute;
+      inset-inline: 6px;
+      top: 50%; transform: translateY(-50%);
+      height: 88px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      z-index: 3; pointer-events: none;
+      transition: border-color .3s, box-shadow .3s;
+    }
+    #win-line.lit {
+      border-color: var(--gold);
+      box-shadow: 0 0 24px rgba(245,158,11,.45), inset 0 0 20px rgba(245,158,11,.05);
+    }
+
+    /* individual reel — clips its strip */
+    .reel {
+      flex: 1;
+      height: 264px;    /* 3 × 88 px — keep in sync with CELL_H */
+      overflow: hidden;
+      border-radius: 6px;
+    }
+
+    /* the strip that scrolls inside each reel */
+    .strip { display: flex; flex-direction: column; will-change: transform; }
+
+    /* each symbol cell */
+    .cell {
+      height: 88px;     /* CELL_H — keep in sync with JS */
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px; flex-shrink: 0; user-select: none;
+    }
+
+    /* ── result message ──────────────────────────────────────────── */
+    #result {
+      min-height: 22px;
+      text-align: center;
+      font-size: 14px; font-weight: 700; letter-spacing: .04em;
+    }
+    #result.win     { color: var(--green); }
+    #result.lose    { color: var(--muted); }
+    #result.jackpot { color: var(--gold-lt); text-shadow: 0 0 10px rgba(245,158,11,.5); }
+
+    /* ── bet section ─────────────────────────────────────────────── */
+    .bet-section { display: flex; flex-direction: column; gap: 9px; }
+
+    .bet-row { display: flex; align-items: center; gap: 10px; }
+    .bet-label {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted); white-space: nowrap;
+    }
+    #bet {
+      flex: 1;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;
+      padding: 8px 12px; text-align: center; outline: none;
+      transition: border-color .2s;
+    }
+    #bet:focus { border-color: var(--purple); }
+
+    .quick-bets { display: flex; gap: 6px; flex-wrap: wrap; }
+    .qbtn {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--muted);
+      font-size: 12px; font-weight: 600; padding: 5px 11px;
+      cursor: pointer;
+      transition: color .15s, border-color .15s, background .15s;
+    }
+    .qbtn:hover:not(:disabled) { color: var(--text); border-color: var(--purple); background: var(--border); }
+    .qbtn:disabled { opacity: .38; cursor: not-allowed; }
+
+    /* ── action buttons ──────────────────────────────────────────── */
+    .btn-row { display: flex; gap: 10px; }
+    .btn {
+      flex: 1; padding: 14px;
+      border-radius: var(--r);
+      font-size: 14px; font-weight: 800; letter-spacing: .07em;
+      text-transform: uppercase; border: none; cursor: pointer;
+      transition: opacity .2s, transform .1s, box-shadow .2s;
+    }
+    .btn:active:not(:disabled) { transform: scale(.96); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    #spin-btn {
+      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+      color: #fff;
+      box-shadow: 0 0 18px rgba(139,92,246,.3);
+    }
+    #spin-btn:hover:not(:disabled) { box-shadow: 0 0 28px rgba(139,92,246,.55); }
+
+    #reset-btn {
+      flex: 0 0 auto; padding: 14px 18px; font-size: 18px;
+      background: var(--panel); border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    #reset-btn:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
+
+    /* ── paytable + history panels ───────────────────────────────── */
+    .panel {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 13px 15px;
+    }
+    .panel-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .1em;
+      color: var(--muted); margin-bottom: 10px;
+    }
+
+    #paytable { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+    .pay-row { display: flex; justify-content: space-between; font-size: 13px; }
+    .pay-row .mult      { font-weight: 700; font-size: 12px; color: var(--gold); }
+    .pay-row .mult.zero { color: var(--muted); }
+
+    .hist-list {
+      display: flex; flex-direction: column; gap: 4px;
+      max-height: 168px; overflow-y: auto;
+    }
+    .hist-list::-webkit-scrollbar { width: 3px; }
+    .hist-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .hist-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 4px 8px; border-radius: 5px;
+      background: rgba(255,255,255,.02); font-size: 12px;
+      animation: popIn .2s ease;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: none; }
+    }
+    .hist-syms { font-size: 14px; letter-spacing: .08em; }
+    .hist-val  { font-weight: 700; }
+    .hist-val.pos { color: var(--green); }
+    .hist-val.neg { color: var(--muted); }
+    .hist-empty { color: var(--muted); font-size: 12px; text-align: center; padding: 6px 0; }
+  </style>
+</head>
+<body>
+
+<p class="banner">Demo game — no real money</p>
+
+<div class="machine">
+
+  <div class="title">
+    <h1>🎰 Lucky Reels</h1>
+    <p>Fictional currency · entertainment only</p>
+  </div>
+
+  <div class="balance-bar">
+    <label>Balance</label>
+    <span id="balance">1 000 ZVC$</span>
+  </div>
+
+  <div class="reels-wrap">
+    <div id="win-line"></div>
+    <div class="reel"><div class="strip" id="strip-0"></div></div>
+    <div class="reel"><div class="strip" id="strip-1"></div></div>
+    <div class="reel"><div class="strip" id="strip-2"></div></div>
+  </div>
+
+  <p id="result"></p>
+
+  <div class="bet-section">
+    <div class="bet-row">
+      <span class="bet-label">Bet</span>
+      <input id="bet" type="number" min="1" max="100" value="10" />
+    </div>
+    <div class="quick-bets">
+      <button class="qbtn" data-add="1">+1</button>
+      <button class="qbtn" data-add="5">+5</button>
+      <button class="qbtn" data-add="10">+10</button>
+      <button class="qbtn" data-add="20">+20</button>
+      <button class="qbtn" id="btn-max">Max</button>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" id="spin-btn">Spin</button>
+    <button class="btn" id="reset-btn" title="Reset balance">↺</button>
+  </div>
+
+  <div class="panel">
+    <p class="panel-title">Paytable</p>
+    <div id="paytable"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-title">Last 10 results</p>
+    <div class="hist-list" id="history"></div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG
+// Edit these values to tune the game. Nothing below this block is magic-numbered.
+// ─────────────────────────────────────────────────────────────────────────────
+const CONFIG = {
+  START_BALANCE : 1000,
+  MIN_BET       : 1,
+  MAX_BET       : 100,
+  HISTORY_MAX   : 10,
+
+  SYMBOLS : ['🍒', '🍋', '🔔', '⭐', '7'],
+
+  // Must match CSS .cell { height }
+  CELL_H  : 88,
+
+  // Number of unique cells in each reel strip before it loops.
+  // Each symbol appears exactly twice (so N = SYMBOLS.length * 2).
+  get N() { return this.SYMBOLS.length * 2; },
+
+  // Scroll speed during free spin (pixels per second)
+  SPIN_PPS : 1100,
+
+  // How long each reel decelerates before stopping (ms)
+  DECEL_MS : 680,
+
+  // Minimum extra distance added before the stop target (px).
+  // Ensures the reel scrolls visibly before landing on the result.
+  MIN_EXTRA_PX : 440,   // ~5 cells
+
+  // ms after spin() is called when each reel begins to decelerate.
+  // Reel 0 stops first, reel 2 stops last.
+  STOP_TIMES : [1400, 1700, 2000],
+
+  PAYOUTS : [
+    { label : '7  7  7',    check : r => r.every(s => s === '7'),                      mult : 20 },
+    { label : '⭐ ⭐ ⭐',  check : r => r.every(s => s === '⭐'),                     mult : 10 },
+    { label : '🔔 🔔 🔔',  check : r => r.every(s => s === '🔔'),                     mult : 8  },
+    { label : 'Any triple', check : r => r[0]===r[1] && r[1]===r[2],                   mult : 5  },
+    { label : 'Any double', check : r => r[0]===r[1] || r[1]===r[2] || r[0]===r[2],   mult : 2  },
+  ],
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let balance  = CONFIG.START_BALANCE;
+let spinning = false;
+let history  = [];
+let rafId    = null;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REEL OBJECTS
+// Each reel owns its DOM element, symbol layout, and animation state.
+// ─────────────────────────────────────────────────────────────────────────────
+const reels = [0, 1, 2].map(i => ({
+  el       : document.getElementById(`strip-${i}`),
+  symbols  : [],    // CONFIG.N symbols, set by buildReel()
+  // scrollPx is the raw, ever-increasing scroll position (never wraps).
+  // Rendering normalises it: displayY = scrollPx % (N * CELL_H).
+  scrollPx : 0,
+  phase    : 'idle',   // 'idle' | 'spinning' | 'decelerating' | 'bouncing'
+  // deceleration params (set when phase → 'decelerating')
+  decelFrom   : 0,     // scrollPx at decel start
+  decelTarget : 0,     // scrollPx to land on  (always > decelFrom)
+  decelStart  : 0,     // performance.now() at decel start
+  onLanded    : null,  // called once after the bounce completes
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOM REFS
+// ─────────────────────────────────────────────────────────────────────────────
+const dom = {
+  balance  : document.getElementById('balance'),
+  bet      : document.getElementById('bet'),
+  spinBtn  : document.getElementById('spin-btn'),
+  resetBtn : document.getElementById('reset-btn'),
+  result   : document.getElementById('result'),
+  winLine  : document.getElementById('win-line'),
+  history  : document.getElementById('history'),
+  paytable : document.getElementById('paytable'),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILITIES
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Cryptographically secure integer in [lo, hi] inclusive.
+function secureRand(lo, hi) {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return lo + (buf[0] % (hi - lo + 1));
+}
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function fmt(n) { return n.toLocaleString() + ' ZVC$'; }
+
+// Ease-out cubic: fast start, smooth stop. t in [0,1] → [0,1].
+function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REEL STRIP BUILDER
+// Builds a shuffled symbol array of length N (each symbol appears exactly twice)
+// and writes the strip DOM (symbols repeated twice for seamless looping).
+//
+// Strip layout (N=10):
+//   cells 0..9   → first copy of symbols[]
+//   cells 10..19 → second copy (identical)
+//   Total DOM height = 2 * N * CELL_H
+//
+// Why double the cells? The rendered position normalises scrollPx modulo
+// N * CELL_H, so scrollPx can cross that boundary invisibly because the
+// second copy picks up exactly where the first left off.
+// ─────────────────────────────────────────────────────────────────────────────
+function buildReel(reel) {
+  const { SYMBOLS, N, CELL_H } = CONFIG;
+
+  // Each symbol twice, then Fisher-Yates shuffle
+  const syms = [...SYMBOLS, ...SYMBOLS];
+  for (let i = syms.length - 1; i > 0; i--) {
+    const j = secureRand(0, i);
+    [syms[i], syms[j]] = [syms[j], syms[i]];
+  }
+  reel.symbols = syms;
+
+  // Double the array so the DOM strip loops seamlessly
+  reel.el.innerHTML = [...syms, ...syms]
+    .map(s => `<div class="cell">${s}</div>`)
+    .join('');
+
+  // Reset position
+  reel.scrollPx = 0;
+  reel.phase    = 'idle';
+  reel.el.style.transition = '';
+  reel.el.style.transform  = 'translateY(0)';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REEL POSITION HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The symbol shown in the center row at a given scroll position.
+// Center row is the second of three visible rows.
+//
+// With translateY = -displayY:
+//   top row    shows strip cell at floor(displayY / CELL_H)
+//   center row shows strip cell at floor(displayY / CELL_H) + 1
+//   bottom row shows strip cell at floor(displayY / CELL_H) + 2
+//
+// Strip cell index mod N gives the symbol index in reel.symbols[].
+function centerSymbolAt(reel, scrollPx) {
+  const { N, CELL_H } = CONFIG;
+  const cellIndex = Math.floor(scrollPx / CELL_H) + 1;   // +1 for center row
+  return reel.symbols[cellIndex % N];
+}
+
+// Find the smallest scrollPx value that is >= minPx AND shows targetSym
+// in the center row. minPx ensures we never stop too close to where we started.
+function findLandingPx(reel, minPx, targetSym) {
+  const { N, CELL_H } = CONFIG;
+  const minCell = Math.ceil(minPx / CELL_H);
+
+  // Collect all cell-index-mod-N values where reel.symbols[idx] === targetSym
+  const validMods = reel.symbols
+    .map((s, i) => (s === targetSym ? i : -1))
+    .filter(i => i >= 0)
+    .map(i => (i - 1 + N) % N);  // -1 because center = cell+1
+
+  // For each valid mod, find the nearest cell >= minCell with that mod
+  let best = Infinity;
+  const curMod = minCell % N;
+  for (const mod of validMods) {
+    const delta = (mod - curMod + N) % N;
+    const candidate = minCell + delta;
+    if (candidate < best) best = candidate;
+  }
+
+  return best * CELL_H;
+}
+
+// Apply the strip's scroll position to its CSS transform.
+// Normalises scrollPx into [0, N*CELL_H) so it always maps into the strip.
+function applyTransform(reel) {
+  const loopLen = CONFIG.N * CONFIG.CELL_H;
+  const y = reel.scrollPx % loopLen;
+  reel.el.style.transform = `translateY(${-y}px)`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RAF ANIMATION LOOP
+//
+// This is the sole owner of reel position during 'spinning' and 'decelerating'.
+// It updates scrollPx every frame and calls applyTransform().
+// CSS transitions are NEVER used while the loop is running.
+// ─────────────────────────────────────────────────────────────────────────────
+function rafLoop(now) {
+  let anyActive = false;
+
+  reels.forEach(reel => {
+    if (reel.phase === 'idle' || reel.phase === 'bouncing') return;
+    anyActive = true;
+
+    if (reel.phase === 'spinning') {
+      // Advance by one frame's worth of distance.
+      // RAF fires at ~60 fps; SPIN_PPS / 60 gives px per frame.
+      reel.scrollPx += CONFIG.SPIN_PPS / 60;
+
+    } else if (reel.phase === 'decelerating') {
+      const elapsed = now - reel.decelStart;
+      const t       = Math.min(elapsed / CONFIG.DECEL_MS, 1);
+      const dist    = reel.decelTarget - reel.decelFrom;
+
+      reel.scrollPx = reel.decelFrom + dist * easeOut(t);
+
+      if (t >= 1) {
+        // Deceleration complete: snap to exact target, then bounce
+        reel.scrollPx = reel.decelTarget;
+        reel.phase    = 'bouncing';
+        applyTransform(reel);     // commit exact position before bounce
+        playBounce(reel);
+        return;                   // skip applyTransform below (bounce owns the transform now)
+      }
+    }
+
+    applyTransform(reel);
+  });
+
+  if (anyActive) {
+    rafId = requestAnimationFrame(rafLoop);
+  } else {
+    rafId = null;
+  }
+}
+
+function ensureRafRunning() {
+  if (!rafId) rafId = requestAnimationFrame(rafLoop);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOUNCE
+// A tiny cosmetic overshoot+settle played via CSS transition AFTER the reel
+// has stopped at its exact pixel-perfect position. Because the reel is already
+// at rest and the bounce only moves ±8 px, any slight setTimeout inaccuracy
+// (~5–15 ms) is imperceptible.
+// ─────────────────────────────────────────────────────────────────────────────
+function playBounce(reel) {
+  const loopLen   = CONFIG.N * CONFIG.CELL_H;
+  const finalY    = reel.scrollPx % loopLen;
+
+  // Phase A: overshoot 8 px (simulate inertia hitting the stop)
+  reel.el.style.transition = 'transform 65ms ease-in';
+  reel.el.style.transform  = `translateY(${-(finalY + 8)}px)`;
+
+  setTimeout(() => {
+    // Phase B: spring back to exact position
+    reel.el.style.transition = 'transform 110ms cubic-bezier(0.34, 1.56, 0.64, 1)';
+    reel.el.style.transform  = `translateY(${-finalY}px)`;
+
+    setTimeout(() => {
+      reel.el.style.transition = '';   // clear so RAF can take over again next spin
+      reel.phase = 'idle';
+      reel.onLanded?.();
+      reel.onLanded = null;
+    }, 115);
+  }, 70);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+function initGame() {
+  reels.forEach(buildReel);
+  buildPaytable();
+  updateUI();
+  renderHistory();
+
+  dom.spinBtn.addEventListener('click', spin);
+  dom.resetBtn.addEventListener('click', resetGame);
+  dom.bet.addEventListener('change', () => { dom.bet.value = readBet(); });
+
+  document.querySelectorAll('.qbtn[data-add]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      dom.bet.value = clamp(readBet() + parseInt(btn.dataset.add, 10), CONFIG.MIN_BET, maxBet());
+    });
+  });
+  document.getElementById('btn-max').addEventListener('click', () => {
+    dom.bet.value = maxBet();
+  });
+}
+
+function buildPaytable() {
+  dom.paytable.innerHTML = CONFIG.PAYOUTS
+    .map(p => `<div class="pay-row"><span>${p.label}</span><span class="mult">×${p.mult}</span></div>`)
+    .join('') +
+    `<div class="pay-row"><span>No match</span><span class="mult zero">×0</span></div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BET
+// ─────────────────────────────────────────────────────────────────────────────
+function maxBet() { return Math.min(CONFIG.MAX_BET, balance); }
+
+function readBet() {
+  const v = parseInt(dom.bet.value, 10);
+  return isNaN(v) ? CONFIG.MIN_BET : clamp(v, CONFIG.MIN_BET, maxBet());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPIN
+// ─────────────────────────────────────────────────────────────────────────────
+function spin() {
+  if (spinning) return;
+
+  const bet = readBet();
+  dom.bet.value = bet;
+  if (bet > balance) { showResult('Not enough balance', 'lose'); return; }
+
+  // --- commit wager ---
+  spinning = true;
+  balance -= bet;
+
+  dom.winLine.classList.remove('lit');
+  dom.balance.classList.remove('flash-win', 'flash-lose');
+  showResult('', '');
+  updateUI();
+
+  // Draw outcomes before any animation begins
+  const results = [0, 1, 2].map(i => {
+    // Pick a symbol that actually exists in this reel's strip
+    return CONFIG.SYMBOLS[secureRand(0, CONFIG.SYMBOLS.length - 1)];
+  });
+
+  // Start all reels spinning freely
+  reels.forEach(reel => {
+    reel.phase = 'spinning';
+  });
+  ensureRafRunning();
+
+  // Schedule each reel to decelerate and stop
+  let landedCount = 0;
+
+  results.forEach((sym, i) => {
+    setTimeout(() => {
+      const reel = reels[i];
+
+      // Find where to stop: at least MIN_EXTRA_PX ahead, showing sym in center
+      const minPx = reel.scrollPx + CONFIG.MIN_EXTRA_PX;
+      const target = findLandingPx(reel, minPx, sym);
+
+      reel.decelFrom   = reel.scrollPx;
+      reel.decelTarget = target;
+      reel.decelStart  = performance.now();
+      reel.phase       = 'decelerating';
+
+      reel.onLanded = () => {
+        landedCount++;
+        if (landedCount === 3) onAllLanded(results, bet);
+      };
+
+    }, CONFIG.STOP_TIMES[i]);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SETTLE (called after all three reels have landed)
+// ─────────────────────────────────────────────────────────────────────────────
+function onAllLanded(results, bet) {
+  spinning = false;
+
+  const { mult, win } = evaluate(results, bet);
+  balance += win;
+
+  history.unshift({ symbols: results, bet, win });
+  if (history.length > CONFIG.HISTORY_MAX) history.pop();
+
+  showFeedback(win, mult);
+  updateUI();
+  renderHistory();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EVALUATE
+// ─────────────────────────────────────────────────────────────────────────────
+function evaluate(symbols, bet) {
+  for (const p of CONFIG.PAYOUTS) {
+    if (p.check(symbols)) return { mult: p.mult, win: bet * p.mult };
+  }
+  return { mult: 0, win: 0 };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function updateUI() {
+  dom.balance.textContent = fmt(balance);
+  const broke = balance < CONFIG.MIN_BET;
+  dom.spinBtn.disabled  = spinning || broke;
+  dom.resetBtn.disabled = spinning;
+  dom.bet.disabled      = spinning;
+  dom.bet.max           = maxBet();
+  document.querySelectorAll('.qbtn').forEach(b => { b.disabled = spinning || broke; });
+}
+
+function showResult(text, cls) {
+  dom.result.textContent = text;
+  dom.result.className   = cls || '';
+}
+
+function showFeedback(win, mult) {
+  if (win > 0) {
+    const big = mult >= 10;
+    showResult(
+      big ? `🎉 JACKPOT!  +${fmt(win)}  (×${mult})` : `✓  +${fmt(win)}  (×${mult})`,
+      big ? 'jackpot' : 'win'
+    );
+    dom.winLine.classList.add('lit');
+    dom.balance.classList.add('flash-win');
+    setTimeout(() => {
+      dom.winLine.classList.remove('lit');
+      dom.balance.classList.remove('flash-win');
+    }, 1600);
+  } else {
+    showResult('No win this time', 'lose');
+    dom.balance.classList.add('flash-lose');
+    setTimeout(() => dom.balance.classList.remove('flash-lose'), 700);
+  }
+}
+
+function renderHistory() {
+  if (!history.length) {
+    dom.history.innerHTML = '<p class="hist-empty">No spins yet</p>';
+    return;
+  }
+  dom.history.innerHTML = history.map(({ symbols, bet, win }) => {
+    const won = win > 0;
+    return `<div class="hist-row">
+      <span class="hist-syms">${symbols.join('  ')}</span>
+      <span class="hist-val ${won ? 'pos' : 'neg'}">${won ? '+' : '−'}${fmt(won ? win : bet)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESET
+// ─────────────────────────────────────────────────────────────────────────────
+function resetGame() {
+  if (spinning) return;
+  balance  = CONFIG.START_BALANCE;
+  history  = [];
+  dom.bet.value = 10;
+  showResult('', '');
+  dom.winLine.classList.remove('lit');
+  dom.balance.classList.remove('flash-win', 'flash-lose');
+  reels.forEach(buildReel);   // rebuilds strip DOM and resets scrollPx to 0
+  updateUI();
+  renderHistory();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────────────────────────────────────
+initGame();
+</script>
+
+</body>
+</html>

@@ -221,9 +221,6 @@ const INITIAL_STATE_DEFAULT: BlackjackState = {
   error: null,
 };
 
-// La constante de l'état initial (anciennement INITIAL_STATE)
-const INITIAL_STATE = INITIAL_STATE_DEFAULT;
-
 export function useBlackjackEngine() {
   // Initialisation : restaure la session sauvegardée si elle existe
   const [state, dispatch] = useReducer(blackjackReducer, undefined, getInitialState);

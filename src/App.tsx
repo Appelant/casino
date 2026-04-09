@@ -6,6 +6,7 @@ import { GameLobby } from '@/components/layout';
 import { RouletteTable } from '@/features/roulette';
 import { BlackjackTable } from '@/features/blackjack';
 import { DiceTable } from '@/features/dice';
+import { SlotsTable } from '@/features/slots';
 import { ToastContainer } from '@/components/ui';
 import { StatsPanel } from '@/components/stats/StatsPanel';
 import { HistoryPanel } from '@/components/stats/HistoryPanel';
@@ -22,6 +23,7 @@ function AnimatedRoutes() {
         <Route path="/roulette" element={<RouletteTable />} />
         <Route path="/blackjack" element={<BlackjackTable />} />
         <Route path="/dice" element={<DiceTable />} />
+        <Route path="/slots" element={<SlotsTable />} />
         <Route path="/stats" element={<StatsPanel />} />
         <Route path="/history" element={<HistoryPanel />} />
         <Route path="/leaderboard" element={<Leaderboard />} />

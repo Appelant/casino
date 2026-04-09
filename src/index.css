@@ -96,6 +96,20 @@ body {
   .text-glow {
     text-shadow: 0 0 10px currentColor;
   }
+
+  /* Animation spin lent pour les rouleaux */
+  @keyframes spin-slow {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(-100%);
+    }
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 0.3s linear infinite;
+  }
 }
 
 /* Scrollbar customisée */

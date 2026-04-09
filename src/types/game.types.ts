@@ -1,7 +1,7 @@
 /**
  * Types de jeux disponibles dans le casino
  */
-export type GameType = 'roulette' | 'blackjack' | 'dice';
+export type GameType = 'roulette' | 'blackjack' | 'dice' | 'slots';
 
 /**
  * Statut d'une partie en cours
@@ -26,7 +26,7 @@ export interface GameResult {
   won:         number;
   netProfit:   number;
   isWin:       boolean;
-  details:     RouletteRoundDetails | BlackjackRoundDetails | DiceRoundDetails;
+  details:     RouletteRoundDetails | BlackjackRoundDetails | DiceRoundDetails | SlotsRoundDetails;
 }
 
 /**
@@ -59,6 +59,17 @@ export interface DiceRoundDetails {
   rolledFace: number;
   chosenFace: number;
   outcome: 'win' | 'lose';
+}
+
+/**
+ * Détails spécifiques à la machine à sous
+ */
+export interface SlotsRoundDetails {
+  reels:      [string, string, string];
+  multiplier: number;
+  isJackpot:  boolean;
+  winLabel:   string | null;
+  outcome:    'win' | 'lose';
 }
 
 /**

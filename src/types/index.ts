@@ -21,6 +21,7 @@ export type {
   RouletteRoundDetails,
   BlackjackRoundDetails,
   DiceRoundDetails,
+  SlotsRoundDetails,
   RouletteBetSummary,
   RoundStatus,
 } from './game.types';
@@ -31,6 +32,13 @@ export type {
   DiceBet,
   DiceResult,
 } from './dice.types';
+
+// Slots types
+export type {
+  SlotSymbol,
+  ReelResult,
+  SlotsResult,
+} from './slots.types';
 
 // Roulette types
 export type {

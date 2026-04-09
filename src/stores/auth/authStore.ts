@@ -82,7 +82,7 @@ function toUserRecord(user: ApiUser, rounds: any[]): UserRecord {
     ...user,
     rounds: rounds.map((r: any) => ({
       id: r.id,
-      gameId: r.game_id as 'roulette' | 'blackjack' | 'dice',
+      gameId: r.game_id as 'roulette' | 'blackjack' | 'dice' | 'slots',
       timestamp: r.timestamp,
       wagered: r.wagered,
       won: r.won,
@@ -181,7 +181,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     }
   },
 
-  recordRound: async ({ wagered, won, netProfit, isWin, isBlackjack, newBalance, round }) => {
+  recordRound: async ({ wagered, won, netProfit, isWin, newBalance, round }) => {
     const user = get().currentUser;
     if (!user) return;
 

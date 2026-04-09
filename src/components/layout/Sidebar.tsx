@@ -5,7 +5,7 @@ import { useUIStore } from '@/stores';
 import { slideLeft } from '@/config/animations.config';
 
 export interface SidebarProps {
-  activeGame?: 'roulette' | 'blackjack' | 'dice' | 'lobby';
+  activeGame?: 'roulette' | 'blackjack' | 'dice' | 'slots' | 'lobby';
 }
 
 /**
@@ -55,6 +55,15 @@ export function Sidebar({}: SidebarProps) {
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      ),
+    },
+    {
+      label: 'Slots',
+      href: '/slots',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7V5a2 2 0 00-2-2H7a2 2 0 00-2 2v2m14 0h-2a2 2 0 00-2 2v8a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2zm-8 0H9a2 2 0 00-2 2v8a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2zm-6 0H5a2 2 0 00-2 2v8a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2z" />
         </svg>
       ),
     },
