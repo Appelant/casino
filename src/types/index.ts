@@ -22,9 +22,21 @@ export type {
   BlackjackRoundDetails,
   DiceRoundDetails,
   SlotsRoundDetails,
+  MinesRoundDetails,
   RouletteBetSummary,
   RoundStatus,
 } from './game.types';
+
+// Mines types
+export type {
+  TileState,
+  MinesStatus,
+  MinesTile,
+  MinesRoundPublic,
+  MinesStartParams,
+  MinesRevealParams,
+  MinesCashoutParams,
+} from './mines.types';
 
 // Dice types
 export type {

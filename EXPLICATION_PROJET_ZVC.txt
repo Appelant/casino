@@ -1,0 +1,1205 @@
+================================================================================
+   ZÉROVIRGULECHANCE (ZVC) — EXPLICATION COMPLÈTE DU PROJET
+   Pour un niveau débutant en développement web
+   Rédigé le 10 avril 2026
+================================================================================
+
+Ce document explique de A à Z comment fonctionne le casino fictif ZVC.
+Il est écrit pour quelqu'un qui commence à apprendre le développement web
+et qui veut comprendre comment toutes les pièces s'assemblent.
+
+────────────────────────────────────────────────────────────────────────────────
+TABLE DES MATIÈRES
+────────────────────────────────────────────────────────────────────────────────
+
+  1.  C'est quoi ZVC en quelques mots ?
+  2.  Les outils utilisés (la "stack technique")
+  3.  Architecture : deux programmes qui se parlent
+  4.  La structure des dossiers expliquée
+  5.  Le système de types TypeScript
+  6.  L'authentification (connexion / inscription)
+  7.  Les stores Zustand (la mémoire de l'application)
+  8.  La communication avec le serveur (API)
+  9.  Le générateur de nombres aléatoires sécurisé
+  10. Le design system (les composants visuels)
+  11. Les animations avec Framer Motion
+  12. Le jeu Roulette — comment ça marche
+  13. Le jeu Blackjack — comment ça marche
+  14. Le jeu Dés — comment ça marche
+  15. Le jeu Machine à Sous (Slots) — comment ça marche
+  16. Le jeu Mines — comment ça marche
+  17. Le système de Rang et d'ELO
+  18. La boutique Stripe (recharge de solde)
+  19. La base de données (SQLite)
+  20. Les concepts clés à retenir pour l'évaluation
+
+================================================================================
+  1. C'EST QUOI ZVC EN QUELQUES MOTS ?
+================================================================================
+
+ZéroVirguleChance (ZVC) est une application web de casino fictif.
+"Fictif" signifie qu'on joue avec de l'argent imaginaire appelé "ZVC$"
+(ZéroVirguleChance dollars). Il n'y a pas de vrai argent, pas de vrai paiement.
+
+L'application propose 5 jeux :
+  - La Roulette européenne
+  - Le Blackjack (règles Vegas)
+  - Les Dés
+  - La Machine à Sous (Slots)
+  - Le jeu de Mines (style "Minesweeper" avec mise)
+
+Chaque joueur commence avec 10 000 ZVC$ sur son compte.
+Il peut jouer, gagner, perdre, consulter ses statistiques, et voir
+un classement des autres joueurs.
+
+La monnaie ZVC$ est stockée en "centimes" dans le code.
+  → 1 ZVC$ = 100 centimes dans le code
+  → 10 000 ZVC$ de départ = 1 000 000 centimes en base de données
+  → Pourquoi ? Pour éviter les erreurs d'arrondi avec les virgules flottantes.
+    En informatique, 0.1 + 0.2 ≠ 0.3 à cause de la représentation binaire.
+    Travailler en entiers (centimes) élimine ce problème.
+
+================================================================================
+  2. LES OUTILS UTILISÉS (LA "STACK TECHNIQUE")
+================================================================================
+
+Une "stack technique" c'est l'ensemble des outils et technologies choisis
+pour construire l'application.
+
+──────────────────────────────────────
+  FRONTEND (ce que l'utilisateur voit)
+──────────────────────────────────────
+
+REACT (version 19)
+  → C'est la bibliothèque principale pour construire l'interface.
+  → React permet de découper l'interface en "composants" réutilisables.
+  → Exemple : un bouton, une carte de jeu, une modale = chacun est un composant.
+  → React met à jour automatiquement l'affichage quand les données changent.
+
+TYPESCRIPT (version 6)
+  → C'est JavaScript avec un système de types.
+  → Un "type" c'est une description de ce qu'une variable peut contenir.
+  → Exemple : au lieu d'écrire  let balance = 0
+    on écrit    let balance: number = 0
+  → TypeScript détecte les erreurs AVANT que le code ne tourne.
+  → Dans ce projet, le mode "strict: true" est activé — aucune exception tolérée.
+
+VITE (version 8)
+  → C'est l'outil qui transforme le code source en fichiers lisibles par le navigateur.
+  → Il sert aussi de serveur de développement (avec rechargement automatique).
+
+TAILWIND CSS (version 3)
+  → Un système de styles CSS basé sur des "classes utilitaires".
+  → Au lieu d'écrire du CSS dans un fichier séparé, on écrit les styles directement
+    dans le HTML/JSX avec des classes comme "bg-gray-800", "text-white", "rounded-lg".
+  → Le projet a un thème personnalisé avec des couleurs néon
+    (neon-purple, neon-cyan, neon-gold, neon-red, neon-green).
+
+FRAMER MOTION
+  → Une bibliothèque d'animations pour React.
+  → Elle permet de créer des transitions fluides, des effets de rebond,
+    des animations de cartes (flip 3D), des toasts qui glissent, etc.
+
+ZUSTAND
+  → Un gestionnaire d'état (state management) pour React.
+  → Quand plusieurs composants ont besoin des mêmes données
+    (ex: le solde du joueur), on les met dans un "store" Zustand.
+  → Tous les composants lisent et mettent à jour le même store.
+
+REACT ROUTER (version 7)
+  → Gère la navigation entre les pages (/roulette, /blackjack, /stats...).
+  → HashRouter : les URLs utilisent un # (ex: /#/roulette).
+
+CLSX + TAILWIND-MERGE
+  → Des utilitaires pour combiner des classes Tailwind sans conflits.
+
+──────────────────────────────────────
+  BACKEND (le serveur, invisible pour l'utilisateur)
+──────────────────────────────────────
+
+EXPRESS (version 5)
+  → Un framework pour créer un serveur web en Node.js.
+  → Il reçoit les requêtes HTTP du frontend et renvoie des réponses JSON.
+
+BETTER-SQLITE3
+  → Une bibliothèque pour lire/écrire dans une base de données SQLite.
+  → SQLite = une base de données stockée dans UN SEUL FICHIER (data/zvc.db).
+  → Pas besoin d'installer MySQL ou PostgreSQL.
+
+TSX
+  → Permet d'exécuter directement du TypeScript côté serveur
+    sans avoir à le compiler en JavaScript d'abord.
+
+STRIPE
+  → Service de paiement en ligne (mode test uniquement ici).
+  → Permet d'ajouter du solde ZVC$ via une carte bancaire de test.
+
+DOTENV
+  → Charge les variables d'environnement depuis un fichier .env
+    (clés API Stripe, configuration serveur...).
+
+================================================================================
+  3. ARCHITECTURE : DEUX PROGRAMMES QUI SE PARLENT
+================================================================================
+
+ZVC est une application "client-serveur". Il y a DEUX programmes distincts :
+
+┌─────────────────────────────────────────────────────────┐
+│                    FRONTEND (React)                      │
+│         Tourne dans le navigateur de l'utilisateur       │
+│         Port 5173 (développement Vite)                   │
+│                                                          │
+│  ┌──────────────┐   ┌──────────────┐   ┌─────────────┐ │
+│  │   Composants │   │    Stores    │   │    Hooks    │ │
+│  │   (ce qu'on  │◄──│   (Zustand)  │◄──│  (logique)  │ │
+│  │    affiche)  │   │  (données)   │   │             │ │
+│  └──────────────┘   └──────────────┘   └─────────────┘ │
+│                              │                           │
+│                    Appels HTTP fetch()                    │
+└──────────────────────────────│──────────────────────────┘
+                               │
+                          Internet/Réseau local
+                               │
+┌──────────────────────────────▼──────────────────────────┐
+│                   BACKEND (Express)                      │
+│         Tourne sur le serveur Node.js                    │
+│         Port 3001                                        │
+│                                                          │
+│  ┌──────────────┐   ┌──────────────┐   ┌─────────────┐ │
+│  │   Routes API │   │  Logique     │   │  Base de    │ │
+│  │  /auth/login │──►│  métier      │──►│  données    │ │
+│  │  /mines/start│   │  (validation,│   │  SQLite     │ │
+│  │  /shop/...   │   │   calculs)   │   │  (zvc.db)   │ │
+│  └──────────────┘   └──────────────┘   └─────────────┘ │
+└─────────────────────────────────────────────────────────┘
+
+COMMENT ÇA COMMUNIQUE :
+Le frontend envoie des requêtes HTTP au backend :
+  POST http://localhost:3001/api/auth/login    → connexion
+  POST http://localhost:3001/api/mines/start   → démarrer une partie de Mines
+  POST http://localhost:3001/api/mines/reveal  → révéler une case
+  etc.
+
+Le backend répond avec du JSON :
+  { "user": { "id": "...", "balance": 1000000, ... } }
+  { "round": { "id": "...", "status": "active", ... } }
+  { "error": "Solde insuffisant" }
+
+POUR LANCER LE PROJET :
+  Terminal 1 : npm run server   → lance le backend (port 3001)
+  Terminal 2 : npm run dev      → lance le frontend (port 5173)
+
+================================================================================
+  4. LA STRUCTURE DES DOSSIERS EXPLIQUÉE
+================================================================================
+
+vibecoding/
+│
+├── server/
+│   └── index.ts          ← TOUT le code backend (serveur Express)
+│
+├── src/                  ← TOUT le code frontend (React)
+│   │
+│   ├── main.tsx          ← Point d'entrée : lance React dans le navigateur
+│   ├── App.tsx           ← Racine de l'app : routing + layout + authentification
+│   ├── index.css         ← Styles globaux + variables CSS --neon-*
+│   │
+│   ├── types/            ← Définitions de types TypeScript (CONTRAT de l'app)
+│   │   ├── index.ts      ← Exporte tous les types (barrel export)
+│   │   ├── player.types.ts    ← Types liés au joueur (Player, PlayerStats...)
+│   │   ├── game.types.ts      ← Types partagés entre jeux (GameResult, GameType...)
+│   │   ├── roulette.types.ts  ← Types spécifiques à la roulette
+│   │   ├── blackjack.types.ts ← Types spécifiques au blackjack
+│   │   ├── dice.types.ts      ← Types spécifiques aux dés
+│   │   ├── slots.types.ts     ← Types spécifiques aux slots
+│   │   └── mines.types.ts     ← Types spécifiques à Mines
+│   │
+│   ├── config/           ← Configuration globale
+│   │   ├── game.config.ts     ← Solde de départ, mises min/max, règles des jeux
+│   │   └── animations.config.ts ← TOUS les variants Framer Motion centralisés
+│   │
+│   ├── stores/           ← Gestion d'état global (Zustand)
+│   │   ├── index.ts           ← Barrel export + sélecteurs
+│   │   ├── auth/authStore.ts  ← Utilisateur connecté, connexion, déconnexion
+│   │   ├── player/playerStore.ts ← Solde, pseudo, mises
+│   │   ├── stats/statsStore.ts   ← Statistiques de jeu
+│   │   ├── history/historyStore.ts ← Historique des parties
+│   │   └── ui/uiStore.ts      ← Modales, toasts, son activé/désactivé
+│   │
+│   ├── api/
+│   │   └── client.ts     ← Fonctions pour parler au backend (fetch HTTP)
+│   │
+│   ├── db/               ← Accès à la base de données (côté frontend — localStorage)
+│   │   ├── database.ts   ← Initialisation
+│   │   ├── schema.ts     ← Structure des données
+│   │   ├── auth.ts       ← Fonctions login/register/hash mot de passe
+│   │   └── users.repo.ts ← Fonctions CRUD pour les utilisateurs
+│   │
+│   ├── utils/            ← Fonctions utilitaires pures (sans React)
+│   │   ├── rng/
+│   │   │   ├── rng.ts    ← Générateur aléatoire SÉCURISÉ (crypto.getRandomValues)
+│   │   │   ├── shuffle.ts ← Algorithme de mélange Fisher-Yates
+│   │   │   └── uuid.ts   ← Génération d'identifiants uniques
+│   │   ├── currency.ts   ← formatCurrency(100) → "1,00 ZVC$"
+│   │   ├── math.ts       ← clamp, roundTo, percentOf...
+│   │   └── validators.ts ← Validation des mises
+│   │
+│   ├── features/         ← Un dossier par jeu (logique + composants ensemble)
+│   │   ├── auth/         ← Authentification (formulaire de connexion)
+│   │   ├── roulette/     ← Tout ce qui concerne la roulette
+│   │   ├── blackjack/    ← Tout ce qui concerne le blackjack
+│   │   ├── dice/         ← Tout ce qui concerne les dés
+│   │   ├── slots/        ← Tout ce qui concerne la machine à sous
+│   │   ├── mines/        ← Tout ce qui concerne le jeu de mines
+│   │   └── shop/         ← La boutique Stripe
+│   │
+│   ├── components/       ← Composants partagés entre plusieurs jeux
+│   │   ├── layout/       ← Structure de la page (Header, Sidebar, GameLobby)
+│   │   ├── ui/           ← Boutons, cartes, modales, toasts...
+│   │   ├── stats/        ← Panneaux de statistiques, historique, leaderboard
+│   │   └── player/       ← Profil joueur, nom d'utilisateur
+│   │
+│   └── hooks/            ← Hooks React réutilisables
+│       └── useCountUp.ts ← Animation de compteur (100 → 150 de façon animée)
+│
+├── data/
+│   └── zvc.db            ← Base de données SQLite (fichier binaire)
+│
+├── package.json          ← Liste des dépendances + commandes npm
+├── vite.config.ts        ← Configuration de Vite + alias @/
+├── tailwind.config.ts    ← Thème couleurs néon
+└── tsconfig.json         ← Configuration TypeScript (strict: true)
+
+────────────────────────────────────────────────────────────────────────────────
+POINT IMPORTANT : L'ALIAS @/
+────────────────────────────────────────────────────────────────────────────────
+Dans tous les fichiers, on voit des imports comme :
+  import { usePlayerStore } from '@/stores';
+  import type { GameResult } from '@/types';
+
+Le "@/" est un alias qui signifie "src/".
+  → @/stores   =   src/stores
+  → @/types    =   src/types
+  → @/config   =   src/config
+
+Cela évite des chemins relatifs complexes comme "../../../../stores".
+
+================================================================================
+  5. LE SYSTÈME DE TYPES TYPESCRIPT
+================================================================================
+
+TypeScript oblige à décrire la "forme" des données avant de les utiliser.
+Cela rend le code plus sûr et plus lisible.
+
+EXEMPLE — sans TypeScript :
+  function placeBet(amount) {     // amount : on sait pas ce que c'est
+    if (amount > balance) ...     // mais c'est censé être un nombre
+  }
+
+EXEMPLE — avec TypeScript :
+  function placeBet(amount: number): boolean {
+    if (amount > balance) ...     // TypeScript vérifie que c'est bien un nombre
+  }
+
+TYPES vs INTERFACES :
+  → "interface" : pour décrire la forme d'un objet
+  → "type"      : pour les unions (plusieurs possibilités) et les alias
+
+  // Exemple d'interface (objet)
+  interface UserRecord {
+    id: string;
+    username: string;
+    balance: number;   // en centimes !
+    elo: number;
+    totalGames: number;
+    totalWins: number;
+  }
+
+  // Exemple de type union (plusieurs valeurs possibles)
+  type GameType = 'roulette' | 'blackjack' | 'dice' | 'slots' | 'mines';
+  type GameStatus = 'idle' | 'betting' | 'spinning' | 'result';
+
+GAMERESULT — le type central de l'historique :
+  interface GameResult {
+    id: string;           // identifiant unique du round
+    gameId: GameType;     // quel jeu ('roulette', 'blackjack', etc.)
+    timestamp: number;    // quand (timestamp Unix en millisecondes)
+    wagered: number;      // mise en centimes
+    won: number;          // gain en centimes (0 si perte)
+    netProfit: number;    // gain - mise (négatif si perdu)
+    isWin: boolean;       // true = victoire
+    details: ...;         // détails spécifiques au jeu (varient selon le jeu)
+  }
+
+BARREL EXPORTS :
+  Le fichier src/types/index.ts exporte tous les types du projet.
+  Ainsi on peut écrire :
+    import type { GameResult, Player, RouletteBet } from '@/types';
+  Au lieu de :
+    import type { GameResult } from '@/types/game.types';
+    import type { Player } from '@/types/player.types';
+    import type { RouletteBet } from '@/types/roulette.types';
+
+================================================================================
+  6. L'AUTHENTIFICATION (CONNEXION / INSCRIPTION)
+================================================================================
+
+COMMENT ÇA MARCHE :
+
+1. L'application démarre → AuthGate vérifie si un token est sauvegardé
+   dans le localStorage du navigateur.
+
+2. Si oui → on appelle le backend pour récupérer les données du joueur.
+   Si non → on affiche le formulaire de connexion (LoginModal).
+
+3. Connexion :
+   → Le joueur entre pseudo + mot de passe
+   → Envoi au backend : POST /api/auth/login
+   → Le backend vérifie le hash SHA-256 du mot de passe dans la DB
+   → Si correct : renvoie { user: {...}, token: "identifiant_session" }
+   → Le frontend stocke le token dans localStorage (clé : "ZVC_AUTH_TOKEN")
+   → authStore.currentUser est rempli avec les données du joueur
+   → L'interface s'affiche
+
+4. Déconnexion :
+   → On efface le token du localStorage
+   → authStore.currentUser passe à null
+   → Le LoginModal réapparaît
+
+LE MOT DE PASSE N'EST JAMAIS STOCKÉ EN CLAIR :
+  → Le backend génère un "sel" aléatoire (chaîne de caractères aléatoire)
+  → Hash = SHA-256(motDePasse + sel)
+  → La base de données stocke uniquement le hash et le sel
+  → Même si quelqu'un vole la base de données, il ne peut pas retrouver le mot de passe
+
+L'AUTHSTORE (src/stores/auth/authStore.ts) :
+  C'est le store Zustand central qui contient :
+  - currentUser : les données du joueur connecté (ou null)
+  - isAuthenticated : true/false
+  - isLoading : true pendant les appels réseau
+  - error : message d'erreur si connexion échouée
+
+  Actions principales :
+  - hydrate()      : tente de restaurer la session depuis localStorage
+  - login()        : connecte un joueur
+  - register()     : crée un compte
+  - logout()       : déconnecte
+  - refreshUser()  : re-télécharge les données depuis le serveur
+  - recordRound()  : enregistre un round joué en base de données
+
+================================================================================
+  7. LES STORES ZUSTAND (LA MÉMOIRE DE L'APPLICATION)
+================================================================================
+
+Un "store" Zustand c'est comme une variable globale, mais en mieux :
+  → Tous les composants React peuvent la lire
+  → Quand elle change, les composants qui la lisent se re-affichent automatiquement
+  → La logique de modification est encapsulée dans le store
+
+LE PROJET A 4 STORES PRINCIPAUX :
+
+1. authStore (src/stores/auth/authStore.ts)
+   → Qui est connecté ? Quel est son solde ? Ses stats ?
+   → Source de vérité = le serveur backend
+   → Toutes les modifications passent par des appels API
+
+2. playerStore (src/stores/player/playerStore.ts)
+   → Vue simplifiée du joueur pour les engines de jeu
+   → Se synchronise automatiquement depuis authStore
+   → Expose : balance, username, placeBet(), receiveWin()
+
+   SYNCHRONISATION AUTOMATIQUE :
+   useAuthStore.subscribe(syncFromAuth);
+   → Chaque fois que authStore change, playerStore se met à jour.
+   → Les jeux n'ont besoin de connaître que playerStore.
+
+   COMMENT FONCTIONNE placeBet() :
+   → Déduit la mise du solde IMMÉDIATEMENT (optimiste)
+   → Si l'appel serveur échoue, on peut rollback
+   → Cela donne une réponse visuelle instantanée à l'utilisateur
+
+3. uiStore (src/stores/ui/uiStore.ts)
+   → Quelle modale est ouverte ? (activeModal)
+   → Liste des toasts (notifications temporaires)
+   → Son activé/désactivé
+   → Sidebar ouverte/fermée
+
+   LES TOASTS :
+   Un "toast" = une notification qui apparaît brièvement puis disparaît.
+   Exemple : "+500 ZVC$" en vert après une victoire.
+   → addToast({ level: 'success', message: '+500 ZVC$', duration: 3000 })
+   → Après 3000ms (3 secondes), le toast disparaît automatiquement.
+
+4. statsStore, historyStore
+   → Statistiques de session, historique des parties récentes
+
+COMMENT UTILISER UN STORE DANS UN COMPOSANT :
+  // Sélectionner seulement ce dont on a besoin (performance)
+  const balance = usePlayerStore((s) => s.balance);
+  const placeBet = usePlayerStore((s) => s.placeBet);
+
+  // Le composant se re-affiche UNIQUEMENT quand balance change
+  // (pas quand d'autres propriétés du store changent)
+
+================================================================================
+  8. LA COMMUNICATION AVEC LE SERVEUR (API)
+================================================================================
+
+Le frontend parle au backend via des requêtes HTTP.
+Le fichier src/api/client.ts centralise toutes ces requêtes.
+
+STRUCTURE D'UNE REQUÊTE :
+  async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    const url = `http://localhost:3001/api${endpoint}`;
+    const response = await fetch(url, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data;
+  }
+
+EXEMPLES D'APPELS :
+  // Connexion
+  const { user, token } = await authApi.login('alice', 'monMotDePasse');
+
+  // Récupérer les données d'un utilisateur
+  const { user, rounds } = await usersApi.getById(userId);
+
+  // Mettre à jour le solde
+  await usersApi.update(userId, { balance: 50000 });
+
+ROUTES DU SERVEUR (server/index.ts) :
+  POST /api/auth/register         → créer un compte
+  POST /api/auth/login            → se connecter
+  GET  /api/users/:id             → lire un profil
+  PATCH /api/users/:id            → modifier un profil (solde, stats...)
+  POST /api/users/:id/rounds      → enregistrer un round joué
+  DELETE /api/users/:id/rounds    → effacer l'historique
+
+  POST /api/mines/start           → démarrer une partie de Mines
+  POST /api/mines/reveal          → révéler une case de la grille
+  POST /api/mines/cashout         → encaisser les gains
+
+  POST /api/shop/create-payment-intent → Stripe : créer un paiement
+  POST /api/shop/confirm-payment       → Stripe : confirmer et créditer
+
+  GET  /api/leaderboard           → classement des joueurs
+
+GESTION DES ERREURS :
+  Si le serveur répond avec une erreur HTTP (400, 401, 500...) :
+  → data.error contient le message d'erreur
+  → throw new Error(data.error) est lancé
+  → Le catch dans le hook affiche le message à l'utilisateur
+
+ANTI-TRICHE DANS LES MINES :
+  Le frontend NE connaît PAS les positions des mines pendant une partie active.
+  → Le serveur garde les positions secrètes
+  → Quand la partie se termine (explosion ou cashout), le serveur révèle tout
+  → Ainsi, même en fouillant les réponses réseau, on ne peut pas tricher
+
+================================================================================
+  9. LE GÉNÉRATEUR DE NOMBRES ALÉATOIRES SÉCURISÉ
+================================================================================
+
+RÈGLE ABSOLUE DU PROJET : Math.random() est INTERDIT.
+
+POURQUOI ?
+  Math.random() est pseudo-aléatoire. Un attaquant qui connaît l'algorithme
+  et la "graine" (seed) peut prédire les nombres suivants.
+  Dans un casino, même fictif, c'est inacceptable.
+
+SOLUTION : crypto.getRandomValues()
+  Le navigateur a accès à un générateur cryptographique (CSPRNG)
+  basé sur l'entropie système (mouvements de souris, temps CPU, etc.)
+  Ce générateur est imprévisible même pour quelqu'un qui connaît le code.
+
+LE FICHIER src/utils/rng/rng.ts :
+
+  // Génère un float entre 0 et 1 (exclus)
+  export function secureRandom(): number {
+    const array = new Uint32Array(1);      // tableau de 1 entier 32 bits
+    crypto.getRandomValues(array);          // le navigateur remplit avec du vrai aléatoire
+    return array[0] / (0xFFFFFFFF + 1);    // convertit en float [0, 1)
+  }
+
+  // Génère un entier entre min et max (inclus)
+  export function secureRandomInt(min: number, max: number): number {
+    return Math.floor(secureRandom() * (max - min + 1)) + min;
+  }
+
+EXEMPLES D'UTILISATION :
+  const winningNumber = secureRandomInt(0, 36);  // roulette : 0 à 36
+  const dieResult = secureRandomInt(1, 6);        // dé : 1 à 6
+
+CÔTÉ SERVEUR (pour les Mines) :
+  Le serveur utilise Node.js crypto.randomBytes() — même principe,
+  mais côté serveur pour que les positions des mines soient secrètes.
+
+================================================================================
+  10. LE DESIGN SYSTEM (LES COMPOSANTS VISUELS)
+================================================================================
+
+THÈME NÉON :
+Le projet utilise un thème "casino néon sombre" avec ces couleurs principales :
+
+  casino-dark    #0a0a0f   → fond principal (très sombre, presque noir)
+  casino-surface #12121a   → surfaces (cartes, panneaux)
+  casino-border  #1e1e2e   → bordures subtiles
+
+  neon-purple    #8B5CF6   → violet fluo (CTA principal, focus)
+  neon-cyan      #06B6D4   → bleu-vert fluo (accent, info)
+  neon-gold      #F59E0B   → or fluo (gains, récompenses)
+  neon-red       #EF4444   → rouge (pertes, erreurs, bust)
+  neon-green     #10B981   → vert (victoires, solde positif)
+
+EFFET "GLOW" (lueur) :
+  Les boutons et éléments importants ont un effet de halo lumineux.
+  Implémenté avec Tailwind : shadow-[0_0_15px_rgba(139,92,246,0.3)]
+  (box-shadow CSS avec couleur transparente)
+
+EFFET "GLASSMORPHISME" :
+  Les panneaux ont un aspect "verre dépoli" — fond légèrement transparent
+  avec un flou derrière.
+  Classes Tailwind : backdrop-blur-md bg-white/5 border border-white/10
+
+COMPOSANTS UI RÉUTILISABLES (src/components/ui/) :
+
+  GlassCard.tsx
+    → Conteneur avec l'effet glassmorphisme
+    → Utilisé pour envelopper le contenu des jeux, panneaux...
+
+  NeonButton.tsx
+    → Bouton avec effet néon
+    → Variantes : primary (violet), secondary (cyan), accent (or), danger (rouge), ghost
+    → Tailles : xs, sm, md, lg, xl
+    → États : loading (spinner), disabled (grisé)
+    → Animation : légèrement agrandi au survol, réduit au clic (via Framer Motion)
+
+  CurrencyDisplay.tsx
+    → Affiche le solde avec animation useCountUp
+    → Quand le solde change, les chiffres s'animent de l'ancienne valeur à la nouvelle
+
+  ToastNotification.tsx
+    → Notification temporaire (WIN +500 ZVC$, LOSE -100 ZVC$...)
+    → Apparaît depuis la droite, reste 3s, disparaît
+
+  Modal.tsx
+    → Modale générique avec fond semi-transparent
+    → Ferme au clic sur le fond ou bouton X
+
+  LoadingSpinner.tsx
+    → Cercle tournant avec effet néon pendant les chargements
+
+  ConfirmDialog.tsx
+    → Dialogue de confirmation pour actions destructives
+    → Ex : "Êtes-vous sûr de vouloir effacer votre historique ?"
+
+================================================================================
+  11. LES ANIMATIONS AVEC FRAMER MOTION
+================================================================================
+
+Framer Motion fonctionne avec des "variants" — des objets qui décrivent
+les états d'animation (hidden, visible, exit...).
+
+PRINCIPE DE BASE :
+  import { motion } from 'framer-motion';
+
+  // Un composant motion.div peut être animé
+  <motion.div
+    initial="hidden"        // état initial
+    animate="visible"       // état final
+    variants={fadeIn}       // définition des états
+  >
+    Contenu
+  </motion.div>
+
+  // fadeIn est défini dans animations.config.ts :
+  export const fadeIn = {
+    hidden:  { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: 0.2 } },
+  };
+
+TOUS LES VARIANTS SONT CENTRALISÉS dans src/config/animations.config.ts :
+  → fadeIn, fadeOut
+  → slideUp, slideDown, slideLeft, slideRight
+  → scaleIn, bounceIn
+  → flip3D (pour les cartes de blackjack)
+  → dealCard (distribution de cartes en cascade)
+  → toastSlide (notifications)
+  → modalBackdrop + modalContent
+  → rouletteSpin (rotation de la roue)
+  → buttonPress (clic de bouton)
+  → diceRoll (lancer de dé)
+  → staggerContainer + staggerItem (listes animées)
+
+RÈGLE IMPORTANTE : on n'écrit JAMAIS de variants inline dans les composants.
+Tout doit être dans animations.config.ts pour cohérence et réutilisabilité.
+
+ACCESSIBILITÉ :
+  Certains utilisateurs souffrent de vertiges ou d'épilepsie.
+  Le système "prefers-reduced-motion" respecte leur préférence :
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    // utiliser la version simplifiée de l'animation
+    const variant = rouletteSpinReduced;   // juste un léger fade
+  } else {
+    const variant = rouletteSpin;          // rotation complète
+  }
+
+AnimatePresence :
+  Pour animer la disparition d'un composant (les Toasts, les modales...) :
+  <AnimatePresence>
+    {isVisible && <motion.div exit={{ opacity: 0 }}>...</motion.div>}
+  </AnimatePresence>
+  Sans AnimatePresence, React supprime le composant immédiatement
+  sans laisser le temps à l'animation de sortie de jouer.
+
+================================================================================
+  12. LE JEU ROULETTE — COMMENT ÇA MARCHE
+================================================================================
+
+RÈGLES IMPLÉMENTÉES :
+  → Roulette européenne : 37 cases (0 vert, 1-36 rouge/noir)
+  → Case 0 = fait perdre toutes les mises simples
+  → Mise minimale : 1 ZVC$ (100 centimes)
+
+TABLE DES PAYOUTS :
+  Plein (1 numéro)          → payout 35:1
+  Cheval (2 numéros)        → payout 17:1
+  Transversale (3 numéros)  → payout 11:1
+  Carré (4 numéros)         → payout 8:1
+  Sixain (6 numéros)        → payout 5:1
+  Colonne/Douzaine (12)     → payout 2:1
+  Simple chance (18)        → payout 1:1 (Rouge/Noir, Pair/Impair, Manque/Passe)
+
+LA MACHINE À ÉTATS (FSM — Finite State Machine) :
+  La logique de la roulette suit un chemin d'états précis :
+
+  idle ──[startBetting()]──► betting ──[spin()]──► spinning ──[resolveSpin()]──► result
+   ▲                                                                                │
+   └────────────────────────────[reset()]──────────────────────────────────────────┘
+
+  ÉTATS :
+  - idle    : jeu au repos, on peut commencer à miser
+  - betting : le joueur place ses mises
+  - spinning : la roue tourne (animation en cours)
+  - result  : résultat affiché, on attend le reset
+
+  Pourquoi FSM et pas de simples booléens ?
+  → Avec des booléens : isSpinning + isBetting + hasResult = 3 variables
+    avec des combinaisons impossibles (isSpinning ET isBetting à la fois ?)
+  → Avec une FSM : UN SEUL état à la fois, transitions clairement définies.
+
+LE REDUCER (useReducer) :
+  function rouletteReducer(state, action) {
+    switch (action.type) {
+      case 'SPIN':     return { ...state, status: 'spinning', winningNumber: action.payload };
+      case 'RESOLVE':  return { ...state, status: 'result',   lastResult: action.payload };
+      case 'RESET':    return { status: 'idle', currentBets: [], ... };
+      ...
+    }
+  }
+
+  Le reducer est une fonction PURE :
+  → Même entrée = toujours même sortie
+  → Ne modifie jamais l'état directement (immutabilité)
+  → Retourne TOUJOURS un NOUVEL objet
+
+TIMING DU SPIN :
+  La particularité de ce projet : le numéro gagnant est tiré AVANT l'animation.
+  → spin() génère le numéro, lance l'animation
+  → L'animation tourne pendant ~4.5 secondes
+  → resolveSpin() utilise le numéro déjà tiré pour calculer les gains
+  → Cela garantit que le résultat est déterminé (anti-triche visuel)
+
+RÉSOLUTION DES MISES (betResolver.ts) :
+  La fonction resolveBets(bets, winningNumber) :
+  → Parcourt toutes les mises placées
+  → Pour chaque mise, vérifie si le numéro gagnant est dans les numéros couverts
+  → Calcule le gain selon la table de payouts
+  → Retourne { winningBets, losingBets, totalWon, totalLost, winningColor }
+
+================================================================================
+  13. LE JEU BLACKJACK — COMMENT ÇA MARCHE
+================================================================================
+
+RÈGLES IMPLÉMENTÉES (Vegas Rules) :
+  → 6 decks de 52 cartes (312 cartes total)
+  → Blackjack naturel paie 3:2 (mise 100 → gain 150)
+  → Dealer tire sur Soft 17 (H17)
+  → Double autorisé sur toutes les 2 premières cartes
+    SAUF si la mise dépasse la moitié du capital du joueur
+  → Split autorisé sur paires identiques (1 fois)
+  → Reshuffle quand moins de 25% du sabot reste
+
+LA MACHINE À ÉTATS :
+
+  idle ──[bet()]──► bet ──[deal()]──► deal ──[action()]──► playerTurn ──[stand/bust]──► dealerTurn ──[settle()]──► idle
+
+LE CALCUL DE LA MAIN (handCalculator.ts) :
+  C'est une fonction critique qui doit gérer les As correctement.
+
+  ALGORITHME :
+  1. Compter toutes les cartes (As = 11, Figures = 10)
+  2. Si total > 21 ET il y a un As comptant 11 → recompter cet As à 1
+  3. Répéter jusqu'à total ≤ 21 ou plus d'As
+
+  EXEMPLES :
+  - As + 5 = 16 (Soft 16 — l'As compte 11)
+  - As + 5 + 7 = 13 (l'As passe à 1 pour éviter le bust)
+  - As + As = 12 (un As à 11, un As à 1)
+  - As + Roi = 21 (BLACKJACK NATUREL)
+
+  function calculateHand(cards):
+    total = sum of all cards (Aces = 11)
+    aces = count of aces
+    while (total > 21 && aces > 0):
+      total -= 10   // recalculate one ace from 11 to 1
+      aces--
+    isBust = total > 21
+    isBlackjack = (cards.length == 2) && (total == 21) && (one ace)
+
+LE SABOT (deckBuilder.ts) :
+  6 decks × 52 cartes = 312 cartes
+  Chaque carte a : { suit: 'hearts'|'diamonds'|'clubs'|'spades', rank: 'A'|'2'...'K' }
+  Le sabot est mélangé avec l'algorithme Fisher-Yates utilisant secureRandom().
+
+STRATÉGIE DU DEALER (dealerStrategy.ts) :
+  Le dealer joue automatiquement selon des règles fixes :
+  → Tire (hit) si son total est ≤ 16
+  → Tire (hit) si sa main est Soft 17 (As + 6)
+  → S'arrête (stand) si son total est ≥ 18, ou Hard 17 exactement
+
+VALIDATEUR D'ACTIONS (actionValidator.ts) :
+  canHit    : vrai si la main n'est pas bust
+  canStand  : vrai si la main n'est pas bust
+  canDouble : vrai si 2 cartes exactement + solde suffisant + mise ≤ moitié du capital
+  canSplit  : vrai si 2 cartes de même valeur + solde suffisant
+
+LE SPLIT :
+  Quand le joueur split, il joue deux mains séparément.
+  → main1 : première carte du split + nouvelle carte tirée
+  → main2 : deuxième carte du split + jouée après main1
+
+================================================================================
+  14. LE JEU DÉS — COMMENT ÇA MARCHE
+================================================================================
+
+Jeu simple : choisir une face (1 à 6), parier, lancer le dé.
+Si la face choisie correspond au résultat → gain 6x la mise.
+
+MACHINE À ÉTATS :
+  idle → betting → rolling → result → idle
+
+FONCTIONNEMENT :
+  1. Le joueur choisit une face (1, 2, 3, 4, 5 ou 6) et sa mise
+  2. roll() : génère la face gagnante avec secureRandomInt(1, 6)
+  3. L'animation joue (dé qui "roule")
+  4. resolveRoll() : compare face choisie et face obtenue
+  5. Si victoire : receiveWin(mise × 6)
+  6. Le round est enregistré en base de données
+
+PARTICULARITÉ : comme la roulette, le résultat est généré AVANT l'animation.
+L'animation est purement visuelle — elle ne change pas le résultat.
+
+================================================================================
+  15. LE JEU MACHINE À SOUS (SLOTS) — COMMENT ÇA MARCHE
+================================================================================
+
+3 ROULEAUX avec 6 symboles possibles :
+  seven    (7)   : 5% de probabilité   — le plus rare
+  bar    (BAR)   : 10%
+  diamond  (💎)  : 10%
+  bell     (🔔)  : 20%
+  cherry   (🍒)  : 30%
+  lemon    (🍋)  : 25%                — le plus fréquent
+
+TABLE DES GAINS (PAYTABLE) :
+  777            → × 100 (JACKPOT)
+  BAR BAR BAR    → × 30
+  💎 💎 💎      → × 20
+  🔔 🔔 🔔     → × 15
+  🍒 🍒 🍒    → × 8
+  🍋 🍋 🍋    → × 4
+  Deux 7         → × 10 (Bonus)
+  Un seul 7      → × 2  (Consolation)
+
+COMMENT LES ROULEAUX S'ARRÊTENT :
+  Les rouleaux s'arrêtent en décalé (staggered) :
+  → Rouleau 1 : s'arrête après ~1.1 secondes
+  → Rouleau 2 : s'arrête après ~1.9 secondes
+  → Rouleau 3 : s'arrête après ~2.7 secondes
+  → Résolution : après ~3.8 secondes total
+
+  Comme pour les autres jeux, le résultat est calculé AVANT l'animation.
+  Les "bandes visuelles" (REEL_STRIPS) définissent quels symboles apparaissent
+  autour du symbole cible pour rendre l'animation réaliste.
+
+ACTION COMBINÉE placeBetAndSpin() :
+  Pour une expérience plus fluide, on peut déduire la mise et lancer
+  en un seul clic (idle → spinning directement, sans passer par "betting").
+
+================================================================================
+  16. LE JEU MINES — COMMENT ÇA MARCHE
+================================================================================
+
+Jeu de style "Minesweeper" avec mise et multiplicateur.
+
+PRINCIPE :
+  1. Choisir le nombre de mines (1 à 24) et la mise
+  2. Démarrer : une grille 5×5 (25 cases) avec des mines cachées
+  3. Cliquer sur les cases pour les révéler
+     → Case sûre : 💎 — le multiplicateur augmente
+     → Mine : 💣 — explosion, perte de la mise
+  4. À tout moment, "Encaisser" (cashout) pour prendre les gains
+
+MULTIPLICATEUR — LA FORMULE MATHÉMATIQUE :
+  Plus on révèle de cases sûres, plus le multiplicateur est élevé.
+  Mais plus on attend, plus le risque d'explosion augmente.
+
+  Probabilité de survie après k révélations avec m mines :
+    P(k, m) = ∏(i=0 → k-1) [ (25 - m - i) / (25 - i) ]
+
+  Multiplicateur = (1 / P) × 0.99
+  Les 1% restants = avantage de la maison (house edge)
+
+  EXEMPLE avec 3 mines, après 5 cases sûres révélées :
+  → P = (22/25) × (21/24) × (20/23) × (19/22) × (18/21) ≈ 0.538
+  → Multiplicateur = 1/0.538 × 0.99 ≈ 1.84
+  → Mise de 100 ZVC$ → gain potentiel de 184 ZVC$
+
+ANTI-TRICHE (TRÈS IMPORTANT) :
+  Les mines sont placées côté SERVEUR uniquement.
+  → Le frontend envoie : "démarre une partie, 3 mines, mise 500"
+  → Le serveur génère les positions des mines et les stocke en base de données
+  → Le serveur répond sans révéler les positions : { status: "active", ... }
+  → Le frontend ne sait PAS où sont les mines
+  → Quand la partie se termine, le serveur révèle toutes les positions
+
+  Si les mines étaient côté frontend, n'importe qui pourrait ouvrir
+  les outils développeur du navigateur et voir où elles se trouvent.
+
+MACHINE À ÉTATS (côté frontend) :
+  idle ──[start()]──► active ──[reveal() → mine]──► exploded
+                         │
+                         └──[cashout()]──► cashed_out
+                         │
+                         └──[reveal() → safe]──► active (boucle)
+
+LA TABLE mines_rounds EN BASE DE DONNÉES :
+  id             : identifiant unique
+  user_id        : qui joue
+  status         : active / exploded / cashed_out
+  mine_count     : nombre de mines choisi
+  wager          : mise en centimes
+  mine_positions : JSON ["[3,7,12,...]"] — positions des mines (secret !)
+  revealed_safe  : JSON "[0,5,14,...]"  — cases sûres déjà révélées
+  won_amount     : gain en centimes (null si en cours)
+  created_at     : timestamp début
+  ended_at       : timestamp fin (null si en cours)
+
+================================================================================
+  17. LE SYSTÈME DE RANG ET D'ELO
+================================================================================
+
+LE SCORE ELO :
+  Inspiré du système Elo d'échecs. Points qui montent/descendent selon les résultats.
+
+  function computeEloDelta(wagered, netProfit, isWin, isBlackjack):
+    if (victoire):
+      delta = 15 + arrondi(netProfit/wagered × 20)
+      if (blackjack naturel): delta += 25
+      return min(80, delta)    // plafond 80 points par round
+    else:
+      loss = abs(netProfit/wagered)
+      return max(-60, -(10 + loss × 20))  // plancher -60 points
+
+  → Plus la victoire est "rentable" par rapport à la mise, plus on gagne d'ELO.
+  → L'ELO ne descend jamais en dessous de 0.
+
+LES RANKS (rankSystem.ts) :
+  9 tiers, chacun avec 3 divisions (sauf Radiant) :
+  Iron → Bronze → Silver → Gold → Platinum → Diamond → Ascendant → Immortal → Radiant
+
+  Le rang est calculé à partir du totalWon (total gagné en centimes).
+  Ce n'est pas le solde courant, mais la somme cumulée de tous les gains.
+
+  Iron 1     : 0 à 5 000 ZVC$ gagnés
+  Bronze 1   : 20 000 ZVC$
+  Silver 1   : 80 000 ZVC$
+  Gold 1     : 250 000 ZVC$
+  Platinum 1 : 750 000 ZVC$
+  Diamond 1  : 2 000 000 ZVC$
+  Ascendant 1: 6 500 000 ZVC$
+  Immortal 1 : 17 000 000 ZVC$
+  Radiant    : 60 000 000 ZVC$+
+
+LEADERBOARD :
+  Le classement est public et récupéré depuis le backend.
+  GET /api/leaderboard?limit=50
+  Trie les joueurs par balance (solde courant) décroissant.
+
+================================================================================
+  18. LA BOUTIQUE STRIPE (RECHARGE DE SOLDE)
+================================================================================
+
+Stripe est un service de paiement en ligne.
+Dans ZVC, on l'utilise en MODE TEST — aucun vrai argent n'est débité.
+
+FLUX D'UN PAIEMENT TEST :
+  1. Le joueur ouvre la boutique et choisit un pack
+     (ex: 10 000 ZVC$ pour 2€ symboliques en test)
+
+  2. Frontend → Backend : POST /api/shop/create-payment-intent
+     → Le serveur crée un "PaymentIntent" chez Stripe
+     → Stripe renvoie un "client_secret" (token temporaire)
+     → Le serveur renvoie ce client_secret au frontend
+
+  3. Frontend : Le formulaire Stripe s'affiche avec le client_secret
+     → Le joueur entre sa carte de TEST : 4242 4242 4242 4242
+       (carte magique Stripe qui réussit toujours en mode test)
+
+  4. Stripe confirme le paiement
+
+  5. Frontend → Backend : POST /api/shop/confirm-payment
+     → Le backend vérifie avec Stripe que le paiement est bien confirmé
+     → Si oui : crédite le solde ZVC$ du joueur en base de données
+     → Renvoie le nouveau solde
+
+SÉCURITÉ :
+  → La clé secrète Stripe (STRIPE_SECRET_KEY) est UNIQUEMENT côté serveur
+  → Le frontend n'a accès qu'à la clé publique (VITE_STRIPE_PUBLIC_KEY)
+  → Les clés sont dans un fichier .env (non inclus dans git)
+
+CARTES DE TEST STRIPE :
+  4242 4242 4242 4242  → succès
+  4000 0000 0000 0002  → refus
+  Date d'expiration : n'importe quelle date future
+  CVV : n'importe quels 3 chiffres
+
+================================================================================
+  19. LA BASE DE DONNÉES (SQLITE)
+================================================================================
+
+SQLite est une base de données stockée dans un seul fichier binaire : data/zvc.db
+
+TABLES CRÉÉES AU DÉMARRAGE DU SERVEUR :
+
+  users :
+    id              TEXT PRIMARY KEY    (UUID unique)
+    username        TEXT UNIQUE         (pseudo, unique dans l'app)
+    password_hash   TEXT                (hash SHA-256 du mot de passe)
+    salt            TEXT                (sel pour le hash)
+    balance         INTEGER             (solde en centimes)
+    elo             INTEGER DEFAULT 0   (score ELO)
+    total_games     INTEGER DEFAULT 0
+    total_wins      INTEGER DEFAULT 0
+    total_losses    INTEGER DEFAULT 0
+    total_wagered   INTEGER DEFAULT 0   (total misé en centimes)
+    total_won       INTEGER DEFAULT 0   (total gagné en centimes)
+    biggest_win     INTEGER DEFAULT 0   (plus gros gain en centimes)
+    created_at      INTEGER             (timestamp Unix)
+    updated_at      INTEGER
+    last_login_at   INTEGER
+
+  rounds :
+    id              TEXT PRIMARY KEY
+    user_id         TEXT               (référence à users.id)
+    game_id         TEXT               ('roulette', 'blackjack', etc.)
+    timestamp       INTEGER
+    wagered         INTEGER
+    won             INTEGER
+    net_profit      INTEGER
+    is_win          INTEGER            (0 ou 1 — SQLite n'a pas de boolean)
+    details         TEXT               (JSON encodé)
+
+  mines_rounds :
+    id              TEXT PRIMARY KEY
+    user_id         TEXT
+    status          TEXT               ('active', 'exploded', 'cashed_out')
+    mine_count      INTEGER
+    wager           INTEGER
+    mine_positions  TEXT               (JSON encodé — SECRET côté client)
+    revealed_safe   TEXT               (JSON encodé)
+    last_revealed   INTEGER            (dernière case révélée)
+    won_amount      INTEGER            (null si en cours)
+    created_at      INTEGER
+    ended_at        INTEGER
+
+COMMENT LES REQUÊTES FONCTIONNENT :
+  Le module better-sqlite3 permet d'exécuter du SQL synchrone en Node.js.
+
+  // Exemple : créer un utilisateur
+  const stmt = db.prepare(`
+    INSERT INTO users (id, username, password_hash, salt, balance, elo, ...)
+    VALUES (?, ?, ?, ?, ?, ?, ...)
+  `);
+  stmt.run(id, username, hash, salt, STARTING_BALANCE, 0, ...);
+
+  // Exemple : lire un utilisateur
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+
+  // Exemple : mettre à jour le solde
+  db.prepare('UPDATE users SET balance = ?, updated_at = ? WHERE id = ?')
+    .run(newBalance, Date.now(), userId);
+
+DIFFÉRENCE AVEC LE LOCALSTORAGE :
+  Le localStorage du navigateur n'est accessible qu'à UN joueur sur SA machine.
+  SQLite est côté serveur — toutes les données de tous les joueurs sont là.
+  Si tu te connectes depuis un autre ordinateur, ton solde est conservé.
+
+================================================================================
+  20. LES CONCEPTS CLÉS À RETENIR POUR L'ÉVALUATION
+================================================================================
+
+1. ARCHITECTURE CLIENT-SERVEUR
+   → Frontend (React, port 5173) et Backend (Express, port 3001) sont deux programmes séparés.
+   → Ils communiquent via des requêtes HTTP (fetch API).
+   → Le backend protège les données sensibles (positions des mines, mots de passe).
+
+2. REACT ET LES COMPOSANTS
+   → L'interface est découpée en composants réutilisables.
+   → Les composants reçoivent des "props" (propriétés) et renvoient du JSX.
+   → Règle du projet : UN fichier = UN composant.
+   → Pas de logique métier dans les composants — tout va dans les hooks.
+
+3. HOOKS REACT
+   → useState : pour les données locales d'un composant
+   → useReducer : pour les états complexes (FSM)
+   → useCallback : pour mémoriser les fonctions (performance)
+   → useEffect : pour les effets de bord (appels API, abonnements...)
+   → Les hooks personnalisés (useBlackjackEngine, useMinesEngine...) encapsulent la logique.
+
+4. MACHINE À ÉTATS (FSM)
+   → Chaque jeu a des états bien définis : idle, betting, spinning, result.
+   → On passe d'un état à un autre via des actions.
+   → Impossible d'être dans deux états à la fois.
+   → Implémenté avec useReducer + un reducer pur.
+
+5. IMMUTABILITÉ
+   → On ne modifie JAMAIS un objet d'état directement.
+   → On crée TOUJOURS un nouvel objet avec les modifications.
+   → Exemple : return { ...state, status: 'spinning' }   (spread operator)
+   → Pourquoi ? React compare les références pour détecter les changements.
+
+6. TYPAGE STRICT
+   → TypeScript strict: true = pas de "any", pas d'ignorance d'erreurs.
+   → Les types sont définis dans src/types/ et importés via @/types.
+   → interface pour les objets, type pour les unions.
+
+7. GÉNÉRATION ALÉATOIRE SÉCURISÉE
+   → Math.random() INTERDIT — utiliser crypto.getRandomValues().
+   → Côté serveur : crypto.randomBytes().
+   → Garantit l'imprévisibilité du résultat.
+
+8. STOCKAGE EN CENTIMES
+   → Toutes les valeurs monétaires sont en entiers (centimes).
+   → 10 000 ZVC$ = 1 000 000 centimes en base de données.
+   → Évite les erreurs de calcul avec les nombres à virgule.
+
+9. ZUSTAND — STATE MANAGEMENT
+   → Un store = un objet avec des données + des fonctions pour les modifier.
+   → Les composants s'abonnent uniquement aux données dont ils ont besoin.
+   → Quand les données changent → les composants concernés se re-affichent.
+
+10. ANTI-TRICHE POUR MINES
+    → Les positions des mines sont calculées et stockées CÔTÉ SERVEUR.
+    → Le frontend ne reçoit jamais les positions pendant une partie active.
+    → Révélation uniquement à la fin de la partie.
+
+11. PATTERN "BARREL EXPORT"
+    → Un fichier index.ts par dossier qui ré-exporte tout le contenu.
+    → Permet d'importer depuis @/types au lieu de @/types/game.types.ts.
+
+12. ALIAS @/
+    → Configuré dans vite.config.ts : "@/" → "src/"
+    → Évite les chemins relatifs complexes comme "../../../../stores".
+
+13. FRAMER MOTION
+    → Animations basées sur des "variants" (états nommés).
+    → Tous les variants sont centralisés dans animations.config.ts.
+    → prefers-reduced-motion respecté pour l'accessibilité.
+
+14. ELO ET RANKS
+    → ELO varie selon le résultat du round (gain/perte relative à la mise).
+    → Rang basé sur le totalWon cumulé (pas le solde courant).
+    → 9 tiers × 3 divisions = 25 rangs du Iron 1 au Radiant.
+
+15. STRIPE (PAIEMENT)
+    → Clé publique côté frontend pour le formulaire de carte.
+    → Clé secrète côté backend uniquement.
+    → PaymentIntent créé côté serveur → confirmé → solde crédité.
+    → Mode TEST : cartes factices, zéro argent réel.
+
+================================================================================
+  GLOSSAIRE DES TERMES TECHNIQUES
+================================================================================
+
+API (Application Programming Interface)
+  → Interface permettant à deux programmes de communiquer.
+  → Ici : le frontend parle au backend via des URLs/routes.
+
+Barrel Export
+  → Fichier index.ts qui réexporte tous les éléments d'un dossier.
+  → Simplifie les imports.
+
+CSPRNG (Cryptographically Secure Pseudo-Random Number Generator)
+  → Générateur de nombres aléatoires sûr cryptographiquement.
+  → Utilisé via crypto.getRandomValues().
+
+FSM (Finite State Machine)
+  → Machine à états finis. Un système qui ne peut être que dans un état à la fois.
+  → Les transitions entre états sont clairement définies.
+
+Hook React
+  → Fonction spéciale de React commençant par "use".
+  → Permet d'utiliser l'état et les effets dans les composants.
+
+Immutabilité
+  → Ne jamais modifier un objet existant. Toujours en créer un nouveau.
+  → Clé du fonctionnement de React et des reducers.
+
+JSON (JavaScript Object Notation)
+  → Format de données texte utilisé pour la communication API.
+  → { "key": "value", "number": 42 }
+
+JWT / Token
+  → Identifiant de session crypté stocké dans localStorage.
+  → Permet de rester connecté sans retaper son mot de passe.
+
+Props (Properties)
+  → Données passées de composant parent à composant enfant.
+
+Reducer
+  → Fonction pure : (état actuel, action) → nouvel état.
+  → N'a pas d'effets de bord. Même entrée = même sortie.
+
+SHA-256
+  → Algorithme de hachage cryptographique.
+  → Transforme n'importe quelle donnée en une empreinte fixe de 64 caractères hex.
+  → Irréversible : impossible de retrouver l'original depuis le hash.
+
+SQLite
+  → Base de données relationnelle stockée dans un fichier.
+  → Pas de serveur séparé requis.
+
+State (État)
+  → Données qui peuvent changer et déclencher un re-rendu du composant.
+
+Store (Zustand)
+  → Conteneur d'état global accessible par tous les composants.
+
+TypeScript
+  → JavaScript + système de types statiques.
+  → Détecte les erreurs avant l'exécution.
+
+UUID (Universally Unique Identifier)
+  → Identifiant unique généré aléatoirement (ex: "f47ac10b-58cc-4372-a567-0e02b2c3d479").
+  → Quasi-impossible d'avoir deux identifiants identiques.
+
+================================================================================
+  FIN DU DOCUMENT
+  ZéroVirguleChance — Explication complète du projet
+================================================================================

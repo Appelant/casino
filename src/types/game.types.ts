@@ -1,7 +1,7 @@
 /**
  * Types de jeux disponibles dans le casino
  */
-export type GameType = 'roulette' | 'blackjack' | 'dice' | 'slots';
+export type GameType = 'roulette' | 'blackjack' | 'dice' | 'slots' | 'mines';
 
 /**
  * Statut d'une partie en cours
@@ -26,7 +26,7 @@ export interface GameResult {
   won:         number;
   netProfit:   number;
   isWin:       boolean;
-  details:     RouletteRoundDetails | BlackjackRoundDetails | DiceRoundDetails | SlotsRoundDetails;
+  details:     RouletteRoundDetails | BlackjackRoundDetails | DiceRoundDetails | SlotsRoundDetails | MinesRoundDetails;
 }
 
 /**
@@ -81,6 +81,17 @@ export interface RouletteBetSummary {
   amount:    number;
   won:       number;
   isWinner:  boolean;
+}
+
+/**
+ * Détails spécifiques au jeu Mines
+ */
+export interface MinesRoundDetails {
+  mineCount:     number;
+  revealedCount: number;
+  minePositions: number[];
+  multiplier:    number;
+  outcome:       'cashout' | 'exploded';
 }
 
 /**

@@ -82,7 +82,7 @@ function toUserRecord(user: ApiUser, rounds: any[]): UserRecord {
     ...user,
     rounds: rounds.map((r: any) => ({
       id: r.id,
-      gameId: r.game_id as 'roulette' | 'blackjack' | 'dice' | 'slots',
+      gameId: r.game_id as 'roulette' | 'blackjack' | 'dice' | 'slots' | 'mines',
       timestamp: r.timestamp,
       wagered: r.wagered,
       won: r.won,

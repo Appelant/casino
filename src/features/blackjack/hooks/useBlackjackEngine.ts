@@ -617,6 +617,12 @@ export function useBlackjackEngine() {
         });
       }
 
+      // Déterminer l'issue globale pour l'UI
+      const hasWin = results.some((r) => r.outcome === 'win' || r.outcome === 'dealerBust');
+      const allLose = results.every((r) => r.outcome === 'lose' || r.outcome === 'bust');
+      const aggregateOutcome: BlackjackOutcome = hasWin ? 'win' : allLose ? 'lose' : 'push';
+      dispatch({ type: 'SETTLE', payload: { outcome: aggregateOutcome, payout: totalPayout } });
+
       isProcessing.current = false;
       return;
     }

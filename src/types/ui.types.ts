@@ -21,6 +21,7 @@ export type ModalType =
   | 'confirm'
   | 'blackjack'
   | 'roulette'
+  | 'shop'
   | null;
 
 /**

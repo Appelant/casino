@@ -93,7 +93,7 @@ export type HistoryStore = HistoryState & HistoryActions & HistorySelectors;
  * État du store UI
  */
 export interface UIState {
-  activeModal:   'settings' | 'stats' | 'history' | 'profile' | null;
+  activeModal:   'settings' | 'stats' | 'history' | 'profile' | 'shop' | null;
   toasts:        Toast[];
   soundEnabled:  boolean;
   animSpeed:     'slow' | 'normal' | 'fast';

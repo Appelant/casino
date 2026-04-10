@@ -32,7 +32,10 @@
       "Bash(npx vite:*)",
       "Bash(echo \"Exit: $?\")",
       "Bash(node_modules/.bin/tsc --noEmit)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"EXIT_CODE: $?\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
     ]
   }
 }

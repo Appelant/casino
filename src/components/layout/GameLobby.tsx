@@ -62,6 +62,23 @@ export function GameLobby() {
       ],
     },
     {
+      id: 'mines' as const,
+      title: 'Mines',
+      description: 'Révélez des cases sûres et encaissez avant d\'exploser. Plus vous risquez, plus vous gagnez !',
+      icon: (
+        <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        </svg>
+      ),
+      color: 'red',
+      rules: [
+        'Grille 5×5, choisissez les mines',
+        'Cases sûres = multiplicateur',
+        'Encaissez quand vous voulez',
+      ],
+    },
+    {
       id: 'slots' as const,
       title: 'Machine à Sous',
       description: 'Alignez 3 symboles identiques pour gagner ! Jackpot avec les 777.',
@@ -80,10 +97,18 @@ export function GameLobby() {
     },
   ];
 
-  const colorClasses = {
+  const colorClasses: Record<string, string> = {
     purple: 'from-neon-purple/20 to-neon-purple/5 border-neon-purple/30',
     gold: 'from-neon-gold/20 to-neon-gold/5 border-neon-gold/30',
     cyan: 'from-neon-cyan/20 to-neon-cyan/5 border-neon-cyan/30',
+    red: 'from-neon-red/20 to-neon-red/5 border-neon-red/30',
+  };
+
+  const textColorClasses: Record<string, string> = {
+    purple: 'text-neon-purple',
+    gold: 'text-neon-gold',
+    cyan: 'text-neon-cyan',
+    red: 'text-neon-red',
   };
 
   return (
@@ -125,12 +150,12 @@ export function GameLobby() {
         {games.map((game) => (
           <motion.div key={game.id} variants={staggerItem}>
             <GlassCard
-              glowColor={game.color as 'purple' | 'gold' | 'cyan'}
+              glowColor={game.color as 'purple' | 'gold' | 'cyan' | 'none'}
               hover
               className={clsx(
                 'h-full p-6',
                 'bg-gradient-to-br',
-                colorClasses[game.color as 'purple' | 'gold' | 'cyan']
+                colorClasses[game.color]
               )}
             >
               <div className="flex flex-col h-full">
@@ -138,7 +163,7 @@ export function GameLobby() {
                 <div className={clsx(
                   'w-20 h-20 rounded-xl mb-4 flex items-center justify-center',
                   'bg-white/5 border border-white/10',
-                  game.color === 'purple' ? 'text-neon-purple' : game.color === 'gold' ? 'text-neon-gold' : 'text-neon-cyan'
+                  textColorClasses[game.color]
                 )}>
                   {game.icon}
                 </div>
@@ -160,7 +185,7 @@ export function GameLobby() {
                 {/* CTA Button */}
                 <Link to={`/${game.id}`}>
                   <NeonButton
-                    variant={game.color as 'purple' | 'gold' | 'cyan'}
+                    variant={game.color as 'purple' | 'gold' | 'cyan' | 'red'}
                     size="lg"
                     className="w-full"
                   >

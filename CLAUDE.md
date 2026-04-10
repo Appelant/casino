@@ -189,6 +189,52 @@ ZéroVirguleChance/
 ```
 
 ---
+⚠️ RÈGLE CRITIQUE — PRD FIRST (OBLIGATOIRE)
+
+Le fichier `PRD.md` est la source de vérité du produit.
+
+À CHAQUE MESSAGE et AVANT CHAQUE ACTION :
+
+1. Tu dois lire intégralement `PRD.md`
+2. Tu dois vérifier que ce que tu fais respecte le PRD
+3. Tu ne dois JAMAIS coder sans te référer au PRD
+4. Tu ne dois JAMAIS inventer de logique non définie dans le PRD
+5. Si une information est manquante → tu poses une question
+6. Si une instruction utilisateur contredit le PRD → tu refuses et tu expliques pourquoi
+
+Règle absolue :
+> Toute implémentation doit être traçable au PRD.
+
+Aucune exception.
+
+---
+
+## ⚠️ PRIORITÉ DES FICHIERS
+
+Ordre de priorité :
+
+1. PRD.md (quoi construire)
+2. CLAUDE.md (comment construire)
+3. Prompt utilisateur (instructions ponctuelles)
+
+Si conflit :
+→ PRD.md gagne toujours
+
+---
+
+## ⚠️ WORKFLOW OBLIGATOIRE
+
+À chaque nouvelle tâche :
+
+1. Lire PRD.md
+2. Identifier la section concernée
+3. Implémenter UNIQUEMENT cette partie
+4. Demander validation avant de continuer
+
+Ne jamais :
+- skip des étapes
+- coder plusieurs features d’un coup
+- sortir du scope MVP
 
 ## 2. Conventions de code — RÈGLES ABSOLUES
 
@@ -868,3 +914,4 @@ R : Permanent (LocalStorage), fenêtre glissante de 50 rounds. L'utilisateur peu
 **Q : Le disclaimer "argent fictif" — où le mettre ?**
 R : Bandeau permanent en bas du `CasinoLayout` ou watermark discret dans le `Header`. Il doit
 être visible à tout moment, pas seulement au démarrage.
+

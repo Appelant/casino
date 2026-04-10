@@ -27,6 +27,7 @@ const variantClasses: Record<string, string> = {
   purple: 'bg-neon-purple/20 text-neon-purple border border-neon-purple/50 hover:bg-neon-purple/30 shadow-[0_0_15px_rgba(139,92,246,0.3)]',
   cyan: 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/50 hover:bg-neon-cyan/30 shadow-[0_0_15px_rgba(6,182,212,0.3)]',
   gold: 'bg-neon-gold/20 text-neon-gold border border-neon-gold/50 hover:bg-neon-gold/30 shadow-[0_0_15px_rgba(245,158,11,0.3)]',
+  red: 'bg-neon-red/20 text-neon-red border border-neon-red/50 hover:bg-neon-red/30 shadow-[0_0_15px_rgba(239,68,68,0.3)]',
 };
 
 /**

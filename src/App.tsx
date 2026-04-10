@@ -7,11 +7,14 @@ import { RouletteTable } from '@/features/roulette';
 import { BlackjackTable } from '@/features/blackjack';
 import { DiceTable } from '@/features/dice';
 import { SlotsTable } from '@/features/slots';
+import { MinesTable } from '@/features/mines';
 import { ToastContainer } from '@/components/ui';
 import { StatsPanel } from '@/components/stats/StatsPanel';
 import { HistoryPanel } from '@/components/stats/HistoryPanel';
 import { Leaderboard } from '@/components/stats/Leaderboard';
 import { AuthGate } from '@/features/auth/components/AuthGate';
+import { ShopModal } from '@/features/shop/components/ShopModal';
+import { useUIStore } from '@/stores';
 import { initDatabase } from '@/db/database';
 
 function AnimatedRoutes() {
@@ -24,6 +27,7 @@ function AnimatedRoutes() {
         <Route path="/blackjack" element={<BlackjackTable />} />
         <Route path="/dice" element={<DiceTable />} />
         <Route path="/slots" element={<SlotsTable />} />
+        <Route path="/mines" element={<MinesTable />} />
         <Route path="/stats" element={<StatsPanel />} />
         <Route path="/history" element={<HistoryPanel />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
@@ -31,6 +35,12 @@ function AnimatedRoutes() {
       </Routes>
     </AnimatePresence>
   );
+}
+
+function ShopModalPortal() {
+  const activeModal = useUIStore((s) => s.activeModal);
+  if (activeModal !== 'shop') return null;
+  return <ShopModal />;
 }
 
 export function App() {
@@ -46,6 +56,7 @@ export function App() {
         </CasinoLayout>
       </AuthGate>
       <ToastContainer />
+      <ShopModalPortal />
     </HashRouter>
   );
 }

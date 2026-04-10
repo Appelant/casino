@@ -6,7 +6,13 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true, // expose on all network interfaces (0.0.0.0)
+    host: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {

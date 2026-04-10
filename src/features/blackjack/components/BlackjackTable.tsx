@@ -104,7 +104,8 @@ export function BlackjackTable() {
   const canStand = engine.status === 'playerTurn';
   const canDouble = engine.status === 'playerTurn' &&
     engine.playerHand?.cards.length === 2 &&
-    playerTotal < 21;
+    playerTotal < 21 &&
+    playerBalance >= engine.currentBet;
   // Split: uniquement avec 2 cartes de même rang, avant de tirer
   const canSplit = engine.status === 'playerTurn' &&
     engine.playerHand?.cards.length === 2 &&

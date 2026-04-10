@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { useUIStore } from '@/stores';
 import { slideLeft } from '@/config/animations.config';
+import { useAuthStore } from '@/stores/auth/authStore';
+import { formatCurrency } from '@/utils/currency';
 
 export interface SidebarProps {
   activeGame?: 'roulette' | 'blackjack' | 'dice' | 'slots' | 'lobby';
@@ -20,6 +22,8 @@ export function Sidebar({}: SidebarProps) {
   const location = useLocation();
   const isSidebarOpen = useUIStore((state) => state.isSidebarOpen);
   const closeSidebar = () => useUIStore.getState().toggleSidebar();
+  const openShop = () => useUIStore.getState().openModal('shop');
+  const currentUser = useAuthStore((s) => s.currentUser);
 
   const navItems = [
     {
@@ -64,6 +68,15 @@ export function Sidebar({}: SidebarProps) {
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7V5a2 2 0 00-2-2H7a2 2 0 00-2 2v2m14 0h-2a2 2 0 00-2 2v8a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2zm-8 0H9a2 2 0 00-2 2v8a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2zm-6 0H5a2 2 0 00-2 2v8a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2z" />
+        </svg>
+      ),
+    },
+    {
+      label: 'Mines',
+      href: '/mines',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
         </svg>
       ),
     },
@@ -136,7 +149,26 @@ export function Sidebar({}: SidebarProps) {
         </nav>
 
         {/* Footer sidebar */}
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 space-y-3">
+          {currentUser && (
+            <button
+              onClick={openShop}
+              className={clsx(
+                'w-full flex items-center gap-3 px-4 py-3 rounded-lg',
+                'bg-neon-gold/10 border border-neon-gold/30 text-neon-gold',
+                'hover:bg-neon-gold/20 transition-all duration-200',
+                'shadow-[0_0_12px_rgba(245,158,11,0.15)]'
+              )}
+            >
+              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <div className="text-left">
+                <div className="text-xs font-bold uppercase tracking-wider">Boutique</div>
+                <div className="text-[10px] text-neon-gold/60">{formatCurrency(currentUser.balance)}</div>
+              </div>
+            </button>
+          )}
           <div className="text-xs text-white/40 text-center">
             ZéroVirguleChance v0.1
           </div>
@@ -187,6 +219,24 @@ export function Sidebar({}: SidebarProps) {
             </Link>
           ))}
         </nav>
+
+        {currentUser && (
+          <div className="p-4 border-t border-white/10">
+            <button
+              onClick={() => { closeSidebar(); openShop(); }}
+              className={clsx(
+                'w-full flex items-center gap-3 px-4 py-3 rounded-lg',
+                'bg-neon-gold/10 border border-neon-gold/30 text-neon-gold',
+                'hover:bg-neon-gold/20 transition-all duration-200'
+              )}
+            >
+              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span className="font-medium">Boutique</span>
+            </button>
+          </div>
+        )}
       </motion.div>
     </>
   );
